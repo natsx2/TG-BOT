@@ -1,26 +1,58 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { AdminLayout } from "@/components/layout/AdminLayout";
+import Login from "@/pages/login";
+import Dashboard from "@/pages/dashboard";
+import Users from "@/pages/users";
+import Pending from "@/pages/pending";
+import Settings from "@/pages/settings";
 
 const queryClient = new QueryClient();
 
-function Home() {
+function ProtectedRoute({ component: Component, ...rest }: any) {
+  const { token, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center font-mono text-muted-foreground">Verifying access...</div>;
+  }
+
+  if (!token) {
+    return <Login />;
+  }
+
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
-    </div>
+    <AdminLayout>
+      <Component {...rest} />
+    </AdminLayout>
   );
 }
 
 function Router() {
+  const { token, isLoading } = useAuth();
+  const [location, setLocation] = useLocation();
+
+  // Root redirect
+  if (location === "/") {
+    if (!isLoading) {
+      if (token) setLocation("/dashboard");
+      else setLocation("/login");
+    }
+    return null;
+  }
+
   return (
     <Switch>
-      <Route path="/" component={Home} />
+      <Route path="/login">
+        {token ? () => { setLocation("/dashboard"); return null; } : <Login />}
+      </Route>
+      <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
+      <Route path="/users"><ProtectedRoute component={Users} /></Route>
+      <Route path="/pending"><ProtectedRoute component={Pending} /></Route>
+      <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -31,7 +63,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AuthProvider>
+            <Router />
+          </AuthProvider>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

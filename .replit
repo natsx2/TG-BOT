@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
 router = "application"
@@ -10,6 +10,23 @@ env = { "CI" = "true" }
 
 [workflows]
 runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Telegram Bot"
+
+[[workflows.workflow]]
+name = "Telegram Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd bot && python bot.py"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -30,3 +47,9 @@ externalPort = 80
 [[ports]]
 localPort = 20130
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+BOT_TOKEN = "8628734415:AAEHSsobdXZ_kGjUC7VdqDE2csSFZp7gPvw"
+API_BASE_URL = "http://localhost:80/api"
