@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -67,87 +68,79 @@
 }
 
 :root {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
 
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --ring: 142.1 76.2% 36.3%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 239 84% 67%;
 
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --card-border: 240 3.7% 15.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --card-border: 220 13% 91%;
 
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --popover-border: 240 3.7% 15.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 220 13% 91%;
 
-  --primary: 142.1 76.2% 36.3%;
-  --primary-foreground: 355.7 100% 97.3%;
+  --primary: 239 84% 67%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
 
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
 
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
 
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
 
-  --sidebar: 240 10% 3.9%;
-  --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-border: 240 3.7% 15.9%;
-  --sidebar-primary: 142.1 76.2% 36.3%;
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 215 27% 17%;
+  --sidebar-primary: 239 84% 67%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 240 4.8% 95.9%;
-  --sidebar-ring: 142.1 76.2% 36.3%;
+  --sidebar-accent: 215 28% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-ring: 239 84% 67%;
 
-  --chart-1: 142.1 76.2% 36.3%;
-  --chart-2: 0 62.8% 30.6%;
-  --chart-3: 240 3.7% 15.9%;
-  --chart-4: 240 5% 64.9%;
-  --chart-5: 0 0% 98%;
+  --chart-1: 239 84% 67%;
+  --chart-2: 142 76% 36%;
+  --chart-3: 48 96% 53%;
+  --chart-4: 0 84% 60%;
+  --chart-5: 262 80% 50%;
 
-  --radius: 0.2rem;
-  --app-font-sans: 'Space Mono', 'Inter', sans-serif;
+  --radius: 0.5rem;
+  --app-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: 'Space Mono', monospace;
+  --app-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --ring: 142.1 76.2% 36.3%;
-
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --card-border: 240 3.7% 15.9%;
-
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --popover-border: 240 3.7% 15.9%;
-
-  --primary: 142.1 76.2% 36.3%;
-  --primary-foreground: 355.7 100% 97.3%;
-
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --border: 215 27% 17%;
+  --input: 215 27% 17%;
+  --ring: 239 84% 67%;
+  --card: 222 47% 13%;
+  --card-foreground: 210 40% 98%;
+  --card-border: 215 27% 20%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --popover-border: 215 27% 17%;
+  --primary: 239 84% 67%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 27% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 215 27% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 215 27% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 0 0% 100%;
 }
 
 @layer base {
@@ -155,6 +148,6 @@
     @apply border-border;
   }
   body {
-    @apply font-mono antialiased bg-background text-foreground;
+    @apply font-sans antialiased bg-background text-foreground;
   }
 }

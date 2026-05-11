@@ -1,16 +1,36 @@
-import { usePendingUsers, useApproveUser, useRejectUser, User } from "@/hooks/use-users";
-import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  usePendingUsers,
+  useApproveUser,
+  useRejectUser,
+  User,
+} from "@/hooks/use-users";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, XCircle, Clock, Loader2, UserCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card } from "@/components/ui/card";
 
 const approveSchema = z.object({
   accessUsername: z.string().min(1, "Access username required"),
@@ -18,95 +38,210 @@ const approveSchema = z.object({
   permanent: z.boolean().default(true),
 });
 
+function UserCard({ user, onApprove, onReject, rejecting }: {
+  user: User;
+  onApprove: (user: User) => void;
+  onReject: (user: User) => void;
+  rejecting: boolean;
+}) {
+  const initials = [user.firstName?.[0], user.lastName?.[0]]
+    .filter(Boolean)
+    .join("")
+    .toUpperCase() || "?";
+
+  return (
+    <div
+      data-testid={`card-pending-${user.id}`}
+      className="bg-white rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+    >
+      <div className="p-5">
+        <div className="flex items-start gap-4">
+          <Avatar className="h-11 w-11 flex-shrink-0">
+            <AvatarFallback className="text-sm font-bold bg-amber-100 text-amber-700">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground truncate">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-sm text-muted-foreground truncate">
+                  @{user.telegramUsername || "—"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0 bg-gray-50 rounded-md px-2 py-1 border border-border">
+                <Clock className="h-3 w-3" />
+                <span>{new Date(user.registeredAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span className="bg-gray-50 border border-border rounded-md px-2 py-0.5 font-mono">
+                ID: {user.telegramId}
+              </span>
+              {user.notes && (
+                <span className="bg-gray-50 border border-border rounded-md px-2 py-0.5">
+                  {user.notes}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-3.5 bg-gray-50/50 border-t border-border flex items-center gap-2 justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 gap-1.5"
+          onClick={() => onReject(user)}
+          disabled={rejecting}
+          data-testid={`button-reject-${user.id}`}
+        >
+          {rejecting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <XCircle className="h-3.5 w-3.5" />
+          )}
+          Reject
+        </Button>
+        <Button
+          size="sm"
+          className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white gap-1.5"
+          onClick={() => onApprove(user)}
+          data-testid={`button-approve-${user.id}`}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Approve
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Pending() {
   const { data: pendingUsers, isLoading } = usePendingUsers();
   const approveMutation = useApproveUser();
   const rejectMutation = useRejectUser();
   const { toast } = useToast();
-
-  const [approveDialogUser, setApproveDialogUser] = useState<User | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [approveUser, setApproveUser] = useState<User | null>(null);
 
   const form = useForm<z.infer<typeof approveSchema>>({
     resolver: zodResolver(approveSchema),
-    defaultValues: {
-      accessUsername: "",
-      accessPassword: "",
-      permanent: true,
-    },
+    defaultValues: { accessUsername: "", accessPassword: "", permanent: true },
   });
 
-  const handleApproveClick = (user: User) => {
+  const openApprove = (user: User) => {
     form.reset({
-      accessUsername: user.telegramUsername || user.telegramId.toString(),
-      accessPassword: Math.random().toString(36).slice(-8),
-      permanent: true
+      accessUsername: user.telegramUsername || String(user.telegramId),
+      accessPassword: Math.random().toString(36).slice(-10),
+      permanent: true,
     });
-    setApproveDialogUser(user);
+    setApproveUser(user);
   };
 
   const submitApprove = (values: z.infer<typeof approveSchema>) => {
-    if (!approveDialogUser) return;
-    approveMutation.mutate({ id: approveDialogUser.id, data: values }, {
-      onSuccess: () => {
-        toast({ title: "User approved." });
-        setApproveDialogUser(null);
-      },
-      onError: (err: any) => {
-        toast({ title: "Approval failed.", description: err.message, variant: "destructive" });
+    if (!approveUser) return;
+    approveMutation.mutate(
+      { id: approveUser.id, data: values },
+      {
+        onSuccess: () => {
+          toast({ title: "User approved", description: `@${approveUser.telegramUsername} now has access.` });
+          setApproveUser(null);
+        },
+        onError: (err: any) =>
+          toast({ title: "Approval failed", description: err.message, variant: "destructive" }),
       }
-    });
+    );
   };
 
-  const handleReject = (id: number) => {
-    if (confirm("Reject this request?")) {
-      rejectMutation.mutate({ id, data: { notes: "Rejected by admin" } }, {
-        onSuccess: () => toast({ title: "User rejected." }),
-        onError: (err: any) => toast({ title: "Action failed.", description: err.message, variant: "destructive" })
-      });
-    }
+  const handleReject = (user: User) => {
+    setRejectingId(user.id);
+    rejectMutation.mutate(
+      { id: user.id, data: { notes: "Rejected by admin" } },
+      {
+        onSuccess: () => {
+          toast({ title: "User rejected" });
+          setRejectingId(null);
+        },
+        onError: (err: any) => {
+          toast({ title: "Action failed", description: err.message, variant: "destructive" });
+          setRejectingId(null);
+        },
+      }
+    );
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Action Queue</h2>
-        <p className="text-muted-foreground font-mono text-sm mt-1">Awaiting admin disposition.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Pending Requests</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {isLoading
+              ? "Loading..."
+              : pendingUsers?.length === 0
+              ? "No pending requests"
+              : `${pendingUsers?.length} user${pendingUsers?.length !== 1 ? "s" : ""} waiting for review`}
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-4">
-        {isLoading ? (
-          <div className="text-center py-12 font-mono text-muted-foreground border border-border border-dashed rounded-md">Initializing data stream...</div>
-        ) : pendingUsers?.length === 0 ? (
-          <div className="text-center py-12 font-mono text-muted-foreground border border-border border-dashed rounded-md">Queue empty. All clear.</div>
-        ) : (
-          pendingUsers?.map(user => (
-            <Card key={user.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-black/20 hover:bg-black/40 transition-colors border-l-4 border-l-primary">
-              <div>
-                <div className="font-medium text-lg">{user.firstName} {user.lastName}</div>
-                <div className="text-sm text-muted-foreground font-mono">@{user.telegramUsername} | ID: {user.telegramId}</div>
-                <div className="text-xs text-muted-foreground font-mono mt-2">Requested: {new Date(user.registeredAt).toLocaleString()}</div>
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-border p-5 space-y-3">
+              <div className="flex gap-3">
+                <Skeleton className="h-11 w-11 rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10 hover:text-red-400 font-mono tracking-wide" onClick={() => handleReject(user.id)}>
-                  <XCircle className="w-4 h-4 mr-2" /> REJECT
-                </Button>
-                <Button className="font-mono tracking-wide" onClick={() => handleApproveClick(user)}>
-                  <CheckCircle2 className="w-4 h-4 mr-2" /> APPROVE
-                </Button>
+              <div className="flex gap-2 justify-end pt-2">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-20" />
               </div>
-            </Card>
-          ))
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      ) : !pendingUsers || pendingUsers.length === 0 ? (
+        <div className="bg-white rounded-xl border border-border shadow-sm py-20 text-center">
+          <UserCheck className="h-10 w-10 text-green-400 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-foreground">All caught up</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            No pending access requests at this time
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {pendingUsers.map((user) => (
+            <UserCard
+              key={user.id}
+              user={user}
+              onApprove={openApprove}
+              onReject={handleReject}
+              rejecting={rejectingId === user.id}
+            />
+          ))}
+        </div>
+      )}
 
-      <Dialog open={!!approveDialogUser} onOpenChange={(o) => !o && setApproveDialogUser(null)}>
-        <DialogContent className="sm:max-w-md border-border">
+      <Dialog open={!!approveUser} onOpenChange={(o) => !o && setApproveUser(null)}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Authorize Access</DialogTitle>
-            <p className="text-sm text-muted-foreground font-mono mt-1">Configuring credentials for {approveDialogUser?.telegramUsername || approveDialogUser?.telegramId}</p>
+            <DialogTitle>Approve User</DialogTitle>
+            <DialogDescription>
+              Set access credentials for{" "}
+              <span className="font-medium text-foreground">
+                @{approveUser?.telegramUsername || approveUser?.telegramId}
+              </span>
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(submitApprove)} className="space-y-4 pt-4">
+            <form onSubmit={form.handleSubmit(submitApprove)} className="space-y-4 pt-2">
               <FormField
                 control={form.control}
                 name="accessUsername"
@@ -114,7 +249,7 @@ export default function Pending() {
                   <FormItem>
                     <FormLabel>Access Username</FormLabel>
                     <FormControl>
-                      <Input {...field} className="font-mono" />
+                      <Input {...field} className="font-mono text-sm" data-testid="input-access-username" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -127,7 +262,7 @@ export default function Pending() {
                   <FormItem>
                     <FormLabel>Access Password</FormLabel>
                     <FormControl>
-                      <Input {...field} className="font-mono" />
+                      <Input {...field} className="font-mono text-sm" data-testid="input-access-password" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -137,23 +272,37 @@ export default function Pending() {
                 control={form.control}
                 name="permanent"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
+                  <FormItem className="flex items-start space-x-3 space-y-0 rounded-lg border border-border p-4 bg-gray-50/50">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        data-testid="checkbox-permanent"
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Permanent Access</FormLabel>
-                      <p className="text-xs text-muted-foreground">If unchecked, credentials will expire based on system defaults.</p>
+                    <div className="space-y-0.5 leading-none">
+                      <FormLabel className="text-sm font-medium cursor-pointer">Permanent access</FormLabel>
+                      <p className="text-xs text-muted-foreground">Credentials will not expire</p>
                     </div>
                   </FormItem>
                 )}
               />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setApproveDialogUser(null)}>Cancel</Button>
-                <Button type="submit" disabled={approveMutation.isPending}>{approveMutation.isPending ? "Committing..." : "Authorize"}</Button>
+              <DialogFooter className="gap-2">
+                <Button type="button" variant="outline" onClick={() => setApproveUser(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={approveMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  data-testid="button-confirm-approve"
+                >
+                  {approveMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Approving...</>
+                  ) : (
+                    "Approve access"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </Form>
