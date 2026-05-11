@@ -10,8 +10,12 @@ import {
   Menu,
   ChevronDown,
   Shield,
+  Activity,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "@/hooks/use-theme";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -24,13 +28,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/users", label: "Users", icon: Users },
-  { href: "/pending", label: "Pending", icon: Clock },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/users",     label: "Users",     icon: Users },
+  { href: "/pending",   label: "Pending",   icon: Clock },
+  { href: "/activity",  label: "Activity",  icon: Activity },
+  { href: "/settings",  label: "Settings",  icon: Settings },
 ];
 
 function NavLink({
@@ -81,27 +85,30 @@ function NavLink({
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50/40">
-      <nav className="fixed top-0 left-0 right-0 z-50 h-14 bg-white border-b border-border flex items-center px-4 gap-3">
+    <div className="min-h-screen bg-background">
+      {/* Top navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center px-4 gap-3">
+        {/* Mobile menu trigger */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden h-8 w-8"
+              className="md:hidden h-8 w-8 text-foreground"
               data-testid="button-mobile-menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0 bg-white">
+          <SheetContent side="left" className="w-72 p-0 bg-card">
             <div className="flex flex-col h-full">
               <div className="p-5 border-b border-border flex items-center gap-3">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-4 w-4 text-white" />
+                  <Bot className="h-4 w-4 text-primary-foreground" />
                 </div>
                 <div>
                   <p className="font-semibold text-sm text-foreground">BruteTG</p>
@@ -123,12 +130,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <div className="p-3 border-t border-border">
                 <div className="flex items-center gap-3 px-3 py-2 mb-1 rounded-lg bg-muted/50">
                   <Avatar className="h-7 w-7 flex-shrink-0">
-                    <AvatarFallback className="text-xs bg-primary text-white font-semibold">
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground font-semibold">
                       {user?.username?.[0]?.toUpperCase() || "A"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{user?.username || "Admin"}</p>
+                    <p className="text-sm font-medium truncate text-foreground">{user?.username || "Admin"}</p>
                     <div className="flex items-center gap-1">
                       <Shield className="h-3 w-3 text-muted-foreground" />
                       <p className="text-xs text-muted-foreground">Administrator</p>
@@ -136,12 +143,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    logout();
-                    setMobileOpen(false);
-                  }}
+                  onClick={() => { logout(); setMobileOpen(false); }}
                   data-testid="button-mobile-logout"
-                  className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-500/10 transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
                   Sign out
@@ -151,15 +155,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           </SheetContent>
         </Sheet>
 
+        {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
           <div className="w-7 h-7 bg-primary rounded-md flex items-center justify-center">
-            <Bot className="h-4 w-4 text-white" />
+            <Bot className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-semibold text-sm text-foreground hidden sm:block">BruteTG</span>
         </Link>
 
-        <Separator orientation="vertical" className="h-5 hidden md:block mx-1" />
+        <Separator orientation="vertical" className="h-5 hidden md:block mx-1 bg-border" />
 
+        {/* Desktop nav links */}
         <div className="hidden md:flex items-center gap-0.5">
           {navItems.map((item) => (
             <NavLink key={item.href} item={item} />
@@ -168,45 +174,62 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
         <div className="flex-1" />
 
+        {/* Dark/Light mode toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          data-testid="button-toggle-theme"
+        >
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
+
+        {/* User dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex items-center gap-2 h-8 px-2 rounded-lg"
+              className="flex items-center gap-2 h-8 px-2 rounded-lg text-foreground"
               data-testid="button-user-menu"
             >
               <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px] bg-primary text-white font-semibold">
+                <AvatarFallback className="text-[10px] bg-primary text-primary-foreground font-semibold">
                   {user?.username?.[0]?.toUpperCase() || "A"}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium hidden sm:block">
+              <span className="text-sm font-medium hidden sm:block text-foreground">
                 {user?.username || "Admin"}
               </span>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-52 bg-card border-border">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-0.5">
-                <p className="text-sm font-medium">{user?.username || "Admin"}</p>
+                <p className="text-sm font-medium text-foreground">{user?.username || "Admin"}</p>
                 <div className="flex items-center gap-1">
                   <Shield className="h-3 w-3 text-muted-foreground" />
                   <p className="text-xs text-muted-foreground">Administrator</p>
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem asChild>
-              <Link href="/settings" className="cursor-pointer">
+              <Link href="/settings" className="cursor-pointer text-foreground">
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator className="bg-border" />
             <DropdownMenuItem
               onClick={logout}
-              className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+              className="text-red-500 focus:text-red-500 focus:bg-red-500/10 cursor-pointer"
               data-testid="button-logout"
             >
               <LogOut className="h-4 w-4 mr-2" />
@@ -216,7 +239,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </DropdownMenu>
       </nav>
 
-      <main className="pt-14 min-h-screen">
+      <main className="pt-14 min-h-screen bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </div>
