@@ -1,33 +1,55 @@
 services:
+  # ─── API + Admin Panel (Web Service) ──────────────────────────────────────
   - type: web
-    name: tg-bot-api
-    env: node
+    name: brutetg-api
+    runtime: node
+    region: oregon
     plan: free
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/db run push && pnpm --filter @workspace/api-server run build
-    startCommand: node artifacts/api-server/dist/index.cjs
-    healthCheckPath: /api/health
+    branch: main
+    buildCommand: |
+      npm install -g pnpm &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @workspace/db run push &&
+      pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    autoDeploy: true
     envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
       - key: DATABASE_URL
         sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
       - key: SESSION_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: BOT_TOKEN
         sync: false
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        value: admin000
+      - key: ADMIN_PANEL_BASE_PATH
+        value: /admin
 
-  - type: web
-    name: tg-bot-admin
-    env: node
+  # ─── Telegram Bot (Background Worker) ─────────────────────────────────────
+  - type: worker
+    name: brutetg-bot
+    runtime: python
+    region: oregon
     plan: free
-    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/admin-panel run build
-    startCommand: npx serve -s artifacts/admin-panel/dist -l 10000
+    branch: main
+    buildCommand: pip install -r bot/requirements.txt
+    startCommand: python bot/bot.py
+    autoDeploy: true
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
+      - key: BOT_TOKEN
+        sync: false
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: brutetg-api
+          envVarKey: RENDER_EXTERNAL_URL
+        transform: "value + '/api'"

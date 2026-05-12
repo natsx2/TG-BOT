@@ -6,7 +6,7 @@ import { logger } from "./logger";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "brutetg_admin_jwt_secret_change_in_prod";
 const DEFAULT_USERNAME = process.env.ADMIN_USERNAME ?? "admin";
-const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin321";
+const DEFAULT_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin000";
 
 export function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "brutetg_salt").digest("hex");

@@ -4,3 +4,5 @@ beautifulsoup4==4.12.3
 fake-useragent==1.5.1
 Faker==26.0.0
 lxml==5.2.2
+pyotp==2.9.0
+mechanize==0.4.10
