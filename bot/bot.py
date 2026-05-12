@@ -289,20 +289,30 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     tg_id = str(user.id)
     name  = user.first_name or "User"
 
-    sessions.pop(tg_id, None)
-    ctx.user_data.clear()
+    # If already verified in this session, just show the menu again
+    if sessions.get(tg_id, {}).get("verified"):
+        await update.message.reply_text(
+            f"{WELCOME_BANNER}\n\n"
+            f"✅ *Welcome back, {name}!*\n\nUse /menu to open the tools.",
+            parse_mode="Markdown", reply_markup=main_keyboard(),
+        )
+        return STATE_AUTHENTICATED
 
     await update.message.reply_text(
-        f"👋 Welcome *{name}*!\n\nChecking your registration...",
+        f"👋 *Welcome, {name}!*\n\n🔍 Checking your access...",
         parse_mode="Markdown",
     )
 
     try:
         r = check_status(tg_id)
     except Exception:
-        await update.message.reply_text("❌ Cannot reach server. Try again later.")
+        await update.message.reply_text(
+            "❌ *Server unavailable.*\n\nCannot reach the API. Try again in a moment.",
+            parse_mode="Markdown",
+        )
         return STATE_IDLE
 
+    # ── Not registered yet ────────────────────────────────────────────────────
     if r.status_code == 404:
         try:
             reg = register_user(tg_id, user.username, user.first_name, user.last_name)
@@ -310,106 +320,135 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
             await update.message.reply_text("❌ Registration failed. Try again later.")
             return STATE_IDLE
         if reg.status_code not in (201, 409):
-            await update.message.reply_text(f"❌ Registration error ({reg.status_code}). Contact admin.")
+            await update.message.reply_text(
+                f"❌ Registration error `{reg.status_code}`. Contact admin.", parse_mode="Markdown"
+            )
             return STATE_IDLE
         await update.message.reply_text(
-            "✅ *Registration submitted!*\n\n"
-            "An admin will review and approve your account.\n"
-            "Once approved you will receive credentials to log in.\n\n"
-            "Use /status to check your approval status anytime.",
+            "📋 *Registration Submitted!*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"👤 Name: *{name}*\n"
+            f"🆔 Telegram ID: `{tg_id}`\n\n"
+            "⏳ Your request is pending admin review.\n"
+            "You'll receive a message here once approved.\n\n"
+            "Use /status to check anytime.",
             parse_mode="Markdown",
         )
         return STATE_IDLE
 
-    data   = r.json()
-    status = data.get("status")
+    data      = r.json()
+    status    = data.get("status")
+    expires_at = data.get("expiresAt")
 
+    # ── Pending ───────────────────────────────────────────────────────────────
     if status == "pending":
         await update.message.reply_text(
-            "⏳ *Your account is pending admin approval.*\n\nUse /status to check again.",
+            "⏳ *Access Pending*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Your registration is under review by an admin.\n"
+            "You'll be notified here once approved.\n\n"
+            "Use /status to check your status.",
             parse_mode="Markdown",
         )
         return STATE_IDLE
 
+    # ── Rejected ──────────────────────────────────────────────────────────────
     if status == "rejected":
         await update.message.reply_text(
-            "❌ *Your access request was rejected.*\nContact the admin.",
+            "❌ *Access Denied*\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "Your access request was rejected.\n"
+            "Contact the admin if you believe this is a mistake.",
             parse_mode="Markdown",
         )
         return STATE_IDLE
 
+    # ── Approved — auto-login by Telegram ID ─────────────────────────────────
     if status == "approved":
-        await update.message.reply_text(
-            "✅ *Your account is approved!*\n\nPlease enter your bot username:",
-            parse_mode="Markdown",
+        # Check expiry
+        if expires_at:
+            from datetime import timezone
+            try:
+                exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if datetime.now(timezone.utc) > exp:
+                    await update.message.reply_text(
+                        "⏰ *Access Expired*\n\n"
+                        "Your access period has ended.\n"
+                        "Contact the admin to renew.",
+                        parse_mode="Markdown",
+                    )
+                    return STATE_IDLE
+            except Exception:
+                pass
+
+        expiry_msg = (
+            f"\n⏰ Access expires: *{expires_at[:10]}*" if expires_at
+            else "\n♾️ Permanent access."
         )
-        return STATE_AWAIT_USERNAME
 
-    await update.message.reply_text(f"Unknown status: {status}. Contact admin.")
+        sessions[tg_id] = {
+            "verified":  True,
+            "username":  name,
+            "expiresAt": expires_at,
+        }
+        log_activity(tg_id, name, "AUTH", "login", "Auto-verified via Telegram ID")
+
+        await update.message.reply_text(
+            f"{WELCOME_BANNER}\n\n"
+            f"✅ *Access Granted!*\n"
+            f"👤 *User:* `{name}`{expiry_msg}\n\n"
+            "🔥 Use /menu to open the tools.",
+            parse_mode="Markdown", reply_markup=main_keyboard(),
+        )
+        return STATE_AUTHENTICATED
+
+    await update.message.reply_text(f"⚠️ Unknown status: `{status}`. Contact admin.", parse_mode="Markdown")
     return STATE_IDLE
-
-# ─── Login flow ───────────────────────────────────────────────────────────────
-async def recv_username(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
-    ctx.user_data["login_username"] = update.message.text.strip()
-    await update.message.reply_text("Now enter your bot password:")
-    return STATE_AWAIT_PASSWORD
-
-async def recv_password(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
-    tg_id    = str(update.effective_user.id)
-    username = ctx.user_data.get("login_username", "")
-    password = update.message.text.strip()
-    try: await update.message.delete()
-    except Exception: pass
-
-    try:
-        r = verify_credentials(tg_id, username, password)
-    except Exception:
-        await update.message.reply_text("❌ Server error. Try again."); return STATE_IDLE
-
-    if r.status_code != 200:
-        err = r.json().get("error","Invalid credentials.")
-        await update.message.reply_text(f"❌ Access denied: {err}\n\nUse /start to try again.")
-        return STATE_IDLE
-
-    result = r.json()
-    sessions[tg_id] = {"verified": True, "username": username, "expiresAt": result.get("expiresAt")}
-
-    expiry_msg = ""
-    if result.get("expiresAt"):
-        expiry_msg = f"\n⏰ Access expires: {result['expiresAt'][:10]}"
-
-    await update.message.reply_text(
-        f"{WELCOME_BANNER}\n\n"
-        f"✅ *Authenticated as:* `{username}`{expiry_msg}\n\n"
-        "Use /menu to open the tools.",
-        parse_mode="Markdown", reply_markup=main_keyboard(),
-    )
-    log_activity(tg_id, username, "AUTH", "login", "Login successful")
-    return STATE_AUTHENTICATED
 
 # ─── /status ──────────────────────────────────────────────────────────────────
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     tg_id = str(update.effective_user.id)
-    try: r = check_status(tg_id)
+    try:
+        r = check_status(tg_id)
     except Exception:
-        await update.message.reply_text("❌ Cannot reach server."); return
+        await update.message.reply_text("❌ Cannot reach server. Try again later.")
+        return
 
     if r.status_code == 404:
-        await update.message.reply_text("❌ Not registered. Send /start."); return
+        await update.message.reply_text(
+            "❌ *Not registered.*\n\nSend /start to register.",
+            parse_mode="Markdown",
+        )
+        return
 
     data    = r.json()
-    status  = data.get("status","unknown")
+    status  = data.get("status", "unknown")
     session = sessions.get(tg_id)
-    logged  = "Yes ✅" if session and session.get("verified") else "No ❌"
+    active  = session and session.get("verified")
+
+    status_icons = {"pending": "⏳", "approved": "✅", "rejected": "❌"}
+    icon = status_icons.get(status, "❓")
+
+    expiry_line = ""
+    if active and session.get("expiresAt"):
+        expiry_line = f"\n⏰ *Expires:* `{session['expiresAt'][:10]}`"
+    elif active:
+        expiry_line = "\n♾️ *Access:* Permanent"
 
     msg = (
-        f"📊 *Status Report*\n━━━━━━━━━━━━━━━\n"
-        f"🆔 Telegram ID: `{tg_id}`\n"
-        f"📌 Approval: *{status.upper()}*\n"
-        f"🔐 Logged in: {logged}"
+        f"📊 *Account Status*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🆔 *Telegram ID:* `{tg_id}`\n"
+        f"{icon} *Approval:* `{status.upper()}`\n"
+        f"🔐 *Session:* {'Active ✅' if active else 'Not logged in ❌'}"
+        f"{expiry_line}"
     )
-    if session and session.get("expiresAt"):
-        msg += f"\n⏰ Expires: `{session['expiresAt'][:19]}`"
+
+    if status == "approved" and not active:
+        msg += "\n\n💡 Send /start to log in and access tools."
+    elif status == "pending":
+        msg += "\n\n⏳ Waiting for admin approval."
+
     await update.message.reply_text(msg, parse_mode="Markdown")
 
 # ─── /menu ────────────────────────────────────────────────────────────────────
@@ -1511,24 +1550,19 @@ def main():
         entry_points=[CommandHandler("start", cmd_start)],
         states={
             STATE_IDLE: [
-                CommandHandler("start",   cmd_start),
-                CommandHandler("status",  cmd_status),
-                CommandHandler("help",    cmd_help),
-            ],
-            STATE_AWAIT_USERNAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, recv_username),
-            ],
-            STATE_AWAIT_PASSWORD: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, recv_password),
+                CommandHandler("start",  cmd_start),
+                CommandHandler("status", cmd_status),
+                CommandHandler("help",   cmd_help),
             ],
             STATE_AUTHENTICATED: [
+                CommandHandler("start",   cmd_start),
                 CommandHandler("menu",    cmd_menu),
                 CommandHandler("status",  cmd_status),
                 CommandHandler("logout",  cmd_logout),
                 CommandHandler("au2",     cmd_au2),
                 CommandHandler("fbclone", cmd_fbclone),
                 CommandHandler("spam",    cmd_spam),
-                CommandHandler("nika",    cmd_spam),   # backward compat alias
+                CommandHandler("nika",    cmd_spam),
                 CommandHandler("stop",    cmd_stop),
                 CommandHandler("help",    cmd_help),
                 CallbackQueryHandler(handle_callback),
