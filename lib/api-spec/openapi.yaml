@@ -1,22 +1,24 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Telegram Bot Admin Panel API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: admin
+    description: Admin panel operations
+  - name: bot
+    description: Telegram bot operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +26,495 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin/logout:
+    post:
+      operationId: adminLogout
+      tags: [admin]
+      summary: Admin logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/me:
+    get:
+      operationId: getAdminMe
+      tags: [admin]
+      summary: Get current admin session
+      responses:
+        "200":
+          description: Current session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /admin/users:
+    get:
+      operationId: listBotUsers
+      tags: [admin]
+      summary: List all bot users
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected, all]
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BotUser"
+
+  /admin/users/{id}/approve:
+    post:
+      operationId: approveUser
+      tags: [admin]
+      summary: Approve a bot user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotUser"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin/users/{id}/reject:
+    post:
+      operationId: rejectUser
+      tags: [admin]
+      summary: Reject a bot user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectInput"
+      responses:
+        "200":
+          description: User rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotUser"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin/users/{id}:
+    delete:
+      operationId: deleteBotUser
+      tags: [admin]
+      summary: Delete a bot user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/users/{id}/expiry:
+    post:
+      operationId: setUserExpiry
+      tags: [admin]
+      summary: Set user access expiry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetExpiryInput"
+      responses:
+        "200":
+          description: Expiry set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BotUser"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /admin/tasks:
+    get:
+      operationId: listTasks
+      tags: [admin]
+      summary: List all tasks
+      parameters:
+        - name: telegramId
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: status
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: toolName
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  /admin/tasks/{id}/stop:
+    post:
+      operationId: stopTask
+      tags: [admin]
+      summary: Stop a running task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /admin/settings:
+    get:
+      operationId: getToolSettings
+      tags: [admin]
+      summary: Get tool settings
+      responses:
+        "200":
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolSettings"
+    put:
+      operationId: updateToolSettings
+      tags: [admin]
+      summary: Update tool settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsInput"
+      responses:
+        "200":
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolSettings"
+
+  /bot/webhook:
+    post:
+      operationId: botWebhook
+      tags: [bot]
+      summary: Telegram webhook endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelegramUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: ["string", "null"]
+        stopped:
+          type: ["boolean", "null"]
+
+    AdminLoginInput:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    AdminSession:
+      type: object
+      required: [username, authenticated]
+      properties:
+        username:
+          type: string
+        authenticated:
+          type: boolean
+
+    BotUser:
+      type: object
+      required: [id, telegramId, username, firstName, status, createdAt]
+      properties:
+        id:
+          type: integer
+        telegramId:
+          type: string
+        username:
+          type: ["string", "null"]
+        firstName:
+          type: string
+        lastName:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        rejectionReason:
+          type: ["string", "null"]
+        expiresAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+        phoneNumber:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+
+    DashboardStats:
+      type: object
+      required: [total, pending, approved, rejected, todayRegistrations, runningTasks]
+      properties:
+        total:
+          type: integer
+        pending:
+          type: integer
+        approved:
+          type: integer
+        rejected:
+          type: integer
+        todayRegistrations:
+          type: integer
+        runningTasks:
+          type: integer
+
+    RejectInput:
+      type: object
+      properties:
+        reason:
+          type: ["string", "null"]
+
+    SetExpiryInput:
+      type: object
+      required: [expiresAt]
+      properties:
+        expiresAt:
+          type: ["string", "null"]
+
+    Task:
+      type: object
+      required: [id, telegramId, toolName, status, totalOk, totalFail, totalNoCp, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        telegramId:
+          type: string
+        toolName:
+          type: string
+          enum: [share, crck, create]
+        status:
+          type: string
+          enum: [running, done, stopped, failed]
+        inputData:
+          type: ["string", "null"]
+        totalOk:
+          type: integer
+        totalFail:
+          type: integer
+        totalNoCp:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+
+    ToolSettings:
+      type: object
+      required: [id, showOk, showFail, showNoCp, showNoLimit, notifyEvery, maxConcurrentTasks, shareDelay, crckDelay, createDelay, updatedAt]
+      properties:
+        id:
+          type: integer
+        showOk:
+          type: boolean
+        showFail:
+          type: boolean
+        showNoCp:
+          type: boolean
+        showNoLimit:
+          type: boolean
+        notifyEvery:
+          type: integer
+        maxConcurrentTasks:
+          type: integer
+        shareDelay:
+          type: integer
+        crckDelay:
+          type: integer
+        createDelay:
+          type: integer
+        updatedAt:
+          type: string
+        updatedBy:
+          type: ["string", "null"]
+
+    UpdateSettingsInput:
+      type: object
+      properties:
+        showOk:
+          type: boolean
+        showFail:
+          type: boolean
+        showNoCp:
+          type: boolean
+        showNoLimit:
+          type: boolean
+        notifyEvery:
+          type: integer
+        maxConcurrentTasks:
+          type: integer
+        shareDelay:
+          type: integer
+        crckDelay:
+          type: integer
+        createDelay:
+          type: integer
+
+    TelegramUpdate:
+      type: object
+      properties:
+        update_id:
+          type: integer
+        message:
+          type: object

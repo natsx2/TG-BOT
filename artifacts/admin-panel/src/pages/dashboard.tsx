@@ -1,187 +1,196 @@
-import { useStats, usePendingUsers } from "@/hooks/use-users";
-import {
-  Users,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  ArrowRight,
-  TrendingUp,
-  Bot,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import React from "react";
 import { Link } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetAdminStats,
+  getGetAdminStatsQueryKey,
+  useListBotUsers,
+  getListBotUsersQueryKey,
+  useApproveUser,
+  useRejectUser
+} from "@workspace/api-client-react";
+import { Shell } from "@/components/layout/Shell";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  color,
-  loading,
-}: {
-  title: string;
-  value?: number;
-  icon: React.ElementType;
-  color: string;
-  loading: boolean;
-}) {
-  return (
-    <div className="bg-card rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon className="h-4.5 w-4.5" />
-        </div>
-      </div>
-      {loading ? (
-        <Skeleton className="h-8 w-16" />
-      ) : (
-        <p className="text-3xl font-bold tracking-tight text-foreground">
-          {value ?? 0}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function UserRow({ user }: { user: any }) {
-  const initials = [user.firstName?.[0], user.lastName?.[0]]
-    .filter(Boolean)
-    .join("")
-    .toUpperCase() || user.telegramUsername?.[0]?.toUpperCase() || "?";
-
-  return (
-    <div
-      data-testid={`row-pending-${user.id}`}
-      className="flex items-center justify-between py-3 px-4 hover:bg-muted/40 transition-colors"
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="text-xs bg-amber-500/20 text-amber-400 font-semibold">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">
-            {user.firstName} {user.lastName}
-          </p>
-          <p className="text-xs text-muted-foreground truncate">
-            @{user.telegramUsername || "unknown"} &bull; ID {user.telegramId}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-        <p className="text-xs text-muted-foreground hidden sm:block">
-          {new Date(user.registeredAt).toLocaleDateString()}
-        </p>
-        <Badge
-          variant="outline"
-          className="text-amber-400 border-amber-500/30 bg-amber-500/10 text-xs"
-          data-testid={`badge-pending-${user.id}`}
-        >
-          Pending
-        </Badge>
-      </div>
-    </div>
-  );
-}
+import { useToast } from "@/hooks/use-toast";
+import { Users, UserCheck, UserX, Clock, Activity, Check, X, Zap } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Dashboard() {
-  const { data: stats, isLoading: statsLoading } = useStats();
-  const { data: pending, isLoading: pendingLoading } = usePendingUsers();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: stats, isLoading: statsLoading } = useGetAdminStats({
+    query: { queryKey: getGetAdminStatsQueryKey() }
+  });
+
+  const { data: recentUsers, isLoading: usersLoading } = useListBotUsers(
+    { status: "all" },
+    { query: { queryKey: getListBotUsersQueryKey({ status: "all" }) } }
+  );
+
+  const approveMutation = useApproveUser();
+  const rejectMutation = useRejectUser();
+
+  const handleApprove = (id: number) => {
+    approveMutation.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          toast({ title: "User Approved", description: "The user has been granted access." });
+          queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListBotUsersQueryKey() });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Action Failed", description: "Failed to approve user." });
+        }
+      }
+    );
+  };
+
+  const handleReject = (id: number) => {
+    rejectMutation.mutate(
+      { id, data: { reason: "Rejected by admin from quick actions" } },
+      {
+        onSuccess: () => {
+          toast({ title: "User Rejected", description: "The user request has been denied." });
+          queryClient.invalidateQueries({ queryKey: getGetAdminStatsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListBotUsersQueryKey() });
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Action Failed", description: "Failed to reject user." });
+        }
+      }
+    );
+  };
+
+  const pendingUsers = recentUsers?.filter(u => u.status === "pending").slice(0, 5) || [];
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
+    <Shell>
+      <div className="max-w-6xl mx-auto space-y-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Overview</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Monitor access requests and user activity
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border rounded-lg px-3 py-1.5">
-          <Bot className="h-3.5 w-3.5" />
-          <span>Bot Active</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-        </div>
-      </div>
-
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Users"
-          value={stats?.total}
-          icon={Users}
-          color="bg-blue-500/10 text-blue-400"
-          loading={statsLoading}
-        />
-        <StatCard
-          title="Pending Review"
-          value={stats?.pending}
-          icon={Clock}
-          color="bg-amber-500/10 text-amber-400"
-          loading={statsLoading}
-        />
-        <StatCard
-          title="Approved"
-          value={stats?.approved}
-          icon={CheckCircle2}
-          color="bg-green-500/10 text-green-400"
-          loading={statsLoading}
-        />
-        <StatCard
-          title="Rejected"
-          value={stats?.rejected}
-          icon={XCircle}
-          color="bg-red-500/10 text-red-400"
-          loading={statsLoading}
-        />
-      </div>
-
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Pending Requests</h2>
-            {(stats?.pending ?? 0) > 0 && (
-              <Badge className="text-xs bg-amber-500/20 text-amber-400 border-0 rounded-full px-2">
-                {stats?.pending}
-              </Badge>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground hover:text-foreground h-7">
-            <Link href="/pending" data-testid="link-view-all-pending">
-              View all
-              <ArrowRight className="h-3.5 w-3.5 ml-1" />
-            </Link>
-          </Button>
+          <h1 className="text-3xl font-bold text-foreground">System Overview</h1>
+          <p className="text-muted-foreground mt-1">Real-time statistics and pending actions.</p>
         </div>
 
-        <div className="divide-y divide-border">
-          {pendingLoading ? (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-3 py-3 px-4">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-3.5 w-36" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total Users"
+            value={stats?.total}
+            loading={statsLoading}
+            icon={<Users className="h-4 w-4 text-primary" />}
+          />
+          <StatCard
+            title="Pending Approval"
+            value={stats?.pending}
+            loading={statsLoading}
+            icon={<Clock className="h-4 w-4 text-yellow-500" />}
+          />
+          <StatCard
+            title="Approved"
+            value={stats?.approved}
+            loading={statsLoading}
+            icon={<UserCheck className="h-4 w-4 text-green-500" />}
+          />
+          <StatCard
+            title="Today's Registrations"
+            value={stats?.todayRegistrations}
+            loading={statsLoading}
+            icon={<Activity className="h-4 w-4 text-blue-400" />}
+          />
+          <StatCard
+            title="Running Tasks"
+            value={(stats as { runningTasks?: number } | undefined)?.runningTasks}
+            loading={statsLoading}
+            icon={<Zap className="h-4 w-4 text-purple-400" />}
+          />
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="col-span-1 border-border bg-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Action Required</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">Pending user registrations</p>
               </div>
-            ))
-          ) : !pending || pending.length === 0 ? (
-            <div className="py-12 text-center">
-              <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-foreground">All clear</p>
-              <p className="text-xs text-muted-foreground mt-0.5">No pending requests right now</p>
-            </div>
-          ) : (
-            pending.slice(0, 6).map((user) => (
-              <UserRow key={user.id} user={user} />
-            ))
-          )}
+              <Link href="/users/pending">
+                <Button variant="outline" size="sm">View All</Button>
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {usersLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+                </div>
+              ) : pendingUsers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground border border-dashed border-border rounded-lg">
+                  <UserCheck className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                  <p>All caught up. No pending requests.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingUsers.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-4 rounded-lg border border-border bg-background">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border border-border">
+                          <AvatarFallback className="bg-primary/20 text-primary">
+                            {user.firstName[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-foreground">{user.firstName} {user.lastName}</p>
+                          <p className="text-sm text-muted-foreground">@{user.username || user.telegramId}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="icon" 
+                          variant="outline" 
+                          className="text-green-500 hover:text-green-600 hover:bg-green-500/10 border-green-500/20"
+                          onClick={() => handleApprove(user.id)}
+                          disabled={approveMutation.isPending || rejectMutation.isPending}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="icon" 
+                          variant="outline"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10 border-red-500/20"
+                          onClick={() => handleReject(user.id)}
+                          disabled={approveMutation.isPending || rejectMutation.isPending}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </div>
+    </Shell>
+  );
+}
+
+function StatCard({ title, value, loading, icon }: { title: string, value?: number, loading: boolean, icon: React.ReactNode }) {
+  return (
+    <Card className="border-border bg-card">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-8 w-20" />
+        ) : (
+          <div className="text-3xl font-bold text-foreground">{value ?? 0}</div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
