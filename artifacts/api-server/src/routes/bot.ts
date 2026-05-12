@@ -391,12 +391,13 @@ async function handleToolStart(
       `Send /cancel to abort.`
     );
   } else if (tool === "crck") {
-    userStates.set(telegramId, { step: "crck_combos", data: {} });
+    userStates.set(telegramId, { step: "crck_uids", data: {} });
     await sendMessage(chatId,
-      `🔴 <b>CRCK Tool</b>\n\n` +
-      `Send your combos (one per line):\n\n` +
-      `<code>email@example.com:password123\nemail2@example.com:pass456</code>\n\n` +
-      `Max 500 combos per run. Send /cancel to abort.`
+      `🔴 <b>CRCK Tool (FB Clone Cracker)</b>\n\n` +
+      `Send Facebook UIDs to crack (one per line):\n\n` +
+      `<code>100012345678901\n100087654321012\n100034567890123</code>\n\n` +
+      `Tries common passwords on each UID.\n` +
+      `Max 500 UIDs per run. Send /cancel to abort.`
     );
   } else if (tool === "create") {
     userStates.set(telegramId, { step: "create_count", data: {} });
@@ -452,10 +453,10 @@ async function handleTextInput(chatId: number, telegramId: string, text: string)
         `Results will appear as they come in.\nUse /stop to cancel.`
       );
     }
-  } else if (state.step === "crck_combos") {
-    const lines = text.split("\n").filter(Boolean);
+  } else if (state.step === "crck_uids") {
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
     if (lines.length === 0) {
-      await sendMessage(chatId, `❌ No combos found. Send in format email:password`);
+      await sendMessage(chatId, `❌ No UIDs found. Send one Facebook UID per line.`);
       return;
     }
     userStates.delete(telegramId);
@@ -466,7 +467,8 @@ async function handleTextInput(chatId: number, telegramId: string, text: string)
     } else {
       await sendMessage(chatId,
         `🔴 <b>CRCK Started! [#${result.taskId}]</b>\n\n` +
-        `📦 Loaded: ${lines.length} combos\n\n` +
+        `🔍 Cracking: ${lines.length} UIDs\n` +
+        `🔑 Passwords: 123456, 123123, 1234567, 12345678, 123456789\n\n` +
         `Results appear live. Use /stop to cancel.`
       );
     }

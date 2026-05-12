@@ -131,9 +131,9 @@ async function runTaskInBackground(
         signal,
       });
     } else if (toolName === "crck") {
-      const lines = inputData.split("\n").filter(Boolean);
+      const uids = inputData.split("\n").map(l => l.trim()).filter(Boolean);
       await runCrck({
-        combos: lines,
+        uids,
         delay: settings.crckDelay,
         onResult,
         signal,
