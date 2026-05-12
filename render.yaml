@@ -31,9 +31,6 @@ services:
         value: admin
       - key: ADMIN_PASSWORD
         value: admin000
-      - key: ADMIN_PANEL_BASE_PATH
-        value: /admin
-
   # ─── Telegram Bot (Background Worker) ─────────────────────────────────────
   - type: worker
     name: brutetg-bot
@@ -48,8 +45,4 @@ services:
       - key: BOT_TOKEN
         sync: false
       - key: API_BASE_URL
-        fromService:
-          type: web
-          name: brutetg-api
-          envVarKey: RENDER_EXTERNAL_URL
-        transform: "value + '/api'"
+        value: "https://brutetg-api.onrender.com/api"
