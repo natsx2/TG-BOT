@@ -1,52 +1,70 @@
+import { useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import Login from "@/pages/Login";
+import Dashboard from "@/pages/Dashboard";
+import BotControl from "@/pages/BotControl";
+import Tools from "@/pages/Tools";
+import Logs from "@/pages/Logs";
+import Settings from "@/pages/Settings";
+import Users from "@/pages/Users";
+import Sidebar from "@/components/Sidebar";
+import Navbar from "@/components/Navbar";
 
-import Dashboard from "@/pages/dashboard";
-import Login from "@/pages/login";
-import Users from "@/pages/users";
-import Tasks from "@/pages/tasks";
-import SettingsPage from "@/pages/settings";
+const PAGE_TITLES: Record<string, string> = {
+  "/": "Dashboard",
+  "/bot": "Bot Control",
+  "/users": "Users",
+  "/tools": "Tools",
+  "/logs": "Activity Logs",
+  "/settings": "Settings",
+};
 
-const queryClient = new QueryClient();
+function AppShell() {
+  const { user, loading } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-function Router() {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) return <Login />;
+
   return (
-    <Switch>
-      <Route path="/login" component={Login} />
-      <Route path="/users">
-        <ProtectedRoute><Users /></ProtectedRoute>
-      </Route>
-      <Route path="/users/pending">
-        <ProtectedRoute><Users defaultFilter="pending" /></ProtectedRoute>
-      </Route>
-      <Route path="/tasks">
-        <ProtectedRoute><Tasks /></ProtectedRoute>
-      </Route>
-      <Route path="/settings">
-        <ProtectedRoute><SettingsPage /></ProtectedRoute>
-      </Route>
-      <Route path="/">
-        <ProtectedRoute><Dashboard /></ProtectedRoute>
-      </Route>
-      <Route component={NotFound} />
-    </Switch>
+    <div className="min-h-screen bg-background">
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="lg:pl-64 flex flex-col min-h-screen">
+        <Switch>
+          {Object.entries(PAGE_TITLES).map(([path, title]) => (
+            <Route key={path} path={path}>
+              <Navbar title={title} onMenuToggle={() => setSidebarOpen(v => !v)} />
+              <main className="flex-1 p-4 lg:p-6">
+                {path === "/" && <Dashboard />}
+                {path === "/bot" && <BotControl />}
+                {path === "/users" && <Users />}
+                {path === "/tools" && <Tools />}
+                {path === "/logs" && <Logs />}
+                {path === "/settings" && <Settings />}
+              </main>
+            </Route>
+          ))}
+        </Switch>
+      </div>
+    </div>
   );
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <AppShell />
+      </WouterRouter>
+    </AuthProvider>
   );
 }
 
