@@ -14,6 +14,8 @@ export const botUsersTable = pgTable("bot_users", {
   bio: text("bio"),
   status: userStatusEnum("status").notNull().default("pending"),
   rejectionReason: text("rejection_reason"),
+  accessUsername: text("access_username"),
+  accessPassword: text("access_password"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at"),
