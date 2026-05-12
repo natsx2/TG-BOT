@@ -1,6 +1,6 @@
 import { logger } from "./logger";
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const BOT_TOKEN = process.env.BOT_TOKEN ?? process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 export async function sendMessage(chatId: string | number, text: string, options?: {
@@ -8,7 +8,7 @@ export async function sendMessage(chatId: string | number, text: string, options
   reply_markup?: object;
 }): Promise<void> {
   if (!BOT_TOKEN) {
-    logger.warn("TELEGRAM_BOT_TOKEN not set, skipping sendMessage");
+    logger.warn("BOT_TOKEN not set, skipping sendMessage");
     return;
   }
   try {
@@ -46,7 +46,7 @@ export async function answerCallbackQuery(callbackQueryId: string, text?: string
 
 export async function setWebhook(webhookUrl: string): Promise<void> {
   if (!BOT_TOKEN) {
-    logger.warn("TELEGRAM_BOT_TOKEN not set, skipping setWebhook");
+    logger.warn("BOT_TOKEN not set, skipping setWebhook");
     return;
   }
   try {
@@ -77,13 +77,14 @@ export async function setBotCommands(): Promise<void> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         commands: [
-          { command: "start", description: "🚀 Start the bot" },
-          { command: "register", description: "📝 Submit registration request" },
+          { command: "start", description: "🚀 Start / login" },
           { command: "status", description: "📋 Check your account status" },
-          { command: "library", description: "📚 Browse available tools" },
-          { command: "tasks", description: "📊 View your task history" },
-          { command: "agent", description: "🤖 Open bot assistant" },
-          { command: "stop", description: "🛑 Stop running task" },
+          { command: "menu", description: "🔥 Open tools menu" },
+          { command: "au2", description: "🔨 AU2 FM Maker (FB account creator)" },
+          { command: "fbclone", description: "🔓 FB Clone brute crack" },
+          { command: "spam", description: "📤 Spam Share (cookie post sharer)" },
+          { command: "stop", description: "🛑 Stop running tool" },
+          { command: "logout", description: "🚪 Log out" },
           { command: "help", description: "❓ Show help" },
         ],
       }),
