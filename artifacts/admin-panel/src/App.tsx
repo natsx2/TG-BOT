@@ -1,70 +1,72 @@
-import { useState } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
-import { AuthProvider, useAuth } from "@/lib/auth";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import BotControl from "@/pages/BotControl";
-import Tools from "@/pages/Tools";
-import Logs from "@/pages/Logs";
-import Settings from "@/pages/Settings";
-import Users from "@/pages/Users";
-import Sidebar from "@/components/Sidebar";
-import Navbar from "@/components/Navbar";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { Toaster } from "@/components/ui/toaster";
+import Login from "@/pages/login";
+import Dashboard from "@/pages/dashboard";
+import UsersPage from "@/pages/users";
+import PendingPage from "@/pages/pending";
+import TasksPage from "@/pages/tasks";
+import SettingsPage from "@/pages/settings";
 
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Dashboard",
-  "/bot": "Bot Control",
-  "/users": "Users",
-  "/tools": "Tools",
-  "/logs": "Activity Logs",
-  "/settings": "Settings",
-};
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-function AppShell() {
-  const { user, loading } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+function AppRoutes() {
+  const { user, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-background dark">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (!user) return <Login />;
+  if (!user) {
+    return (
+      <Switch>
+        <Route path="/login" component={Login} />
+        <Route>
+          <Redirect to="/login" />
+        </Route>
+      </Switch>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="lg:pl-64 flex flex-col min-h-screen">
-        <Switch>
-          {Object.entries(PAGE_TITLES).map(([path, title]) => (
-            <Route key={path} path={path}>
-              <Navbar title={title} onMenuToggle={() => setSidebarOpen(v => !v)} />
-              <main className="flex-1 p-4 lg:p-6">
-                {path === "/" && <Dashboard />}
-                {path === "/bot" && <BotControl />}
-                {path === "/users" && <Users />}
-                {path === "/tools" && <Tools />}
-                {path === "/logs" && <Logs />}
-                {path === "/settings" && <Settings />}
-              </main>
-            </Route>
-          ))}
-        </Switch>
-      </div>
-    </div>
+    <Switch>
+      <Route path="/" component={Dashboard} />
+      <Route path="/users/pending"><PendingPage /></Route>
+      <Route path="/users"><UsersPage /></Route>
+      <Route path="/tasks" component={TasksPage} />
+      <Route path="/settings" component={SettingsPage} />
+      <Route path="/login">
+        <Redirect to="/" />
+      </Route>
+      <Route>
+        <Redirect to="/" />
+      </Route>
+    </Switch>
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <AppShell />
-      </WouterRouter>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AppRoutes />
+        </WouterRouter>
+        <Toaster />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
