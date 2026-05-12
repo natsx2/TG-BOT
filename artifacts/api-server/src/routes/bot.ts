@@ -489,6 +489,83 @@ async function handleTextInput(chatId: number, telegramId: string, text: string)
   }
 }
 
+// ─── Python bot API endpoints ─────────────────────────────────────────────────
+
+router.get("/bot/status/:telegramId", async (req, res) => {
+  const { telegramId } = req.params;
+  const [user] = await db
+    .select()
+    .from(botUsersTable)
+    .where(eq(botUsersTable.telegramId, telegramId))
+    .limit(1);
+
+  if (!user) {
+    res.status(404).json({ found: false, status: "unregistered" });
+    return;
+  }
+
+  res.json({
+    found: true,
+    status: user.status,
+    expiresAt: user.expiresAt?.toISOString() ?? null,
+    accessUsername: user.accessUsername ?? null,
+  });
+});
+
+router.post("/bot/verify", async (req, res) => {
+  const { telegramId, accessUsername, accessPassword } = req.body as {
+    telegramId?: string;
+    accessUsername?: string;
+    accessPassword?: string;
+  };
+
+  if (!telegramId || !accessUsername || !accessPassword) {
+    res.status(400).json({ error: "telegramId, accessUsername and accessPassword required" });
+    return;
+  }
+
+  const [user] = await db
+    .select()
+    .from(botUsersTable)
+    .where(eq(botUsersTable.telegramId, telegramId))
+    .limit(1);
+
+  if (!user) {
+    res.status(404).json({ error: "User not found. Use /start to register." });
+    return;
+  }
+
+  if (user.status !== "approved") {
+    res.status(403).json({ error: `Account not approved (status: ${user.status}).` });
+    return;
+  }
+
+  if (user.expiresAt && new Date() > user.expiresAt) {
+    res.status(403).json({ error: "Access has expired. Contact admin to renew." });
+    return;
+  }
+
+  if (!user.accessUsername || !user.accessPassword) {
+    res.status(401).json({ error: "No credentials set. Contact admin." });
+    return;
+  }
+
+  if (user.accessUsername !== accessUsername || user.accessPassword !== accessPassword) {
+    res.status(401).json({ error: "Invalid username or password." });
+    return;
+  }
+
+  res.json({
+    success: true,
+    telegramId: user.telegramId,
+    expiresAt: user.expiresAt?.toISOString() ?? null,
+  });
+});
+
+router.post("/activity", async (req, res) => {
+  res.json({ success: true });
+});
+
 async function handleCallback(cq: TelegramCallbackQuery): Promise<void> {
   const chatId = cq.message?.chat.id;
   if (!chatId) return;
