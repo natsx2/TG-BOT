@@ -127,8 +127,22 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 ))}
               </nav>
 
-              <div className="p-3 border-t border-border">
-                <div className="flex items-center gap-3 px-3 py-2 mb-1 rounded-lg bg-muted/50">
+              <div className="p-3 border-t border-border space-y-1">
+                {/* Dark/Light mode toggle — only here in slide menu */}
+                <button
+                  onClick={toggleTheme}
+                  data-testid="button-toggle-theme"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                >
+                  {theme === "dark" ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
+                  {theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                </button>
+
+                <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50">
                   <Avatar className="h-7 w-7 flex-shrink-0">
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground font-semibold">
                       {user?.username?.[0]?.toUpperCase() || "A"}
@@ -173,22 +187,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </div>
 
         <div className="flex-1" />
-
-        {/* Dark/Light mode toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleTheme}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          data-testid="button-toggle-theme"
-        >
-          {theme === "dark" ? (
-            <Sun className="h-4 w-4" />
-          ) : (
-            <Moon className="h-4 w-4" />
-          )}
-        </Button>
 
         {/* User dropdown */}
         <DropdownMenu>

@@ -32,16 +32,17 @@ interface LogEntry {
 }
 
 const TOOL_COLORS: Record<string, string> = {
-  AU2:     "bg-indigo-50 text-indigo-700 border-indigo-200",
-  FBCLONE: "bg-orange-50 text-orange-700 border-orange-200",
-  NIKA:    "bg-purple-50 text-purple-700 border-purple-200",
-  AUTH:    "bg-slate-50 text-slate-700 border-slate-200",
+  AU2:     "bg-indigo-500/10 text-indigo-400 border-indigo-500/30",
+  FBCLONE: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+  SPAM:    "bg-purple-500/10 text-purple-400 border-purple-500/30",
+  NIKA:    "bg-purple-500/10 text-purple-400 border-purple-500/30",
+  AUTH:    "bg-slate-500/10 text-slate-400 border-slate-500/30",
 };
 
 const POLL_INTERVAL = 3000;
 
 function ToolBadge({ tool }: { tool: string }) {
-  const cls = TOOL_COLORS[tool] ?? "bg-gray-50 text-gray-700 border-gray-200";
+  const cls = TOOL_COLORS[tool] ?? "bg-muted/60 text-muted-foreground border-border";
   return (
     <Badge variant="outline" className={`text-[11px] font-semibold px-2 py-0 ${cls}`}>
       {tool}
@@ -63,7 +64,7 @@ function LogRow({ entry }: { entry: LogEntry }) {
   const dateStr = time.toLocaleDateString([], { month: "short", day: "numeric" });
 
   return (
-    <div className="flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50/80 transition-colors border-b border-border last:border-0">
+    <div className="flex items-start gap-3 px-4 py-2.5 hover:bg-muted/40 transition-colors border-b border-border last:border-0">
       <StatusDot ok={entry.ok} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -121,13 +122,11 @@ export default function ActivityPage() {
     }
   }
 
-  // Initial load
   useEffect(() => {
     fetchLogs(0, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-refresh polling
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (!autoRefresh) return;
@@ -142,7 +141,6 @@ export default function ActivityPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh]);
 
-  // Scroll to bottom when new logs arrive (if near bottom)
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -167,13 +165,12 @@ export default function ActivityPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Tool filter */}
           <Select value={toolFilter} onValueChange={setToolFilter}>
-            <SelectTrigger className="h-8 text-xs w-36 bg-white">
+            <SelectTrigger className="h-8 text-xs w-36 bg-card border-border">
               <Filter className="h-3 w-3 mr-1.5 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-card border-border">
               <SelectItem value="all">All Tools</SelectItem>
               {tools.map((t) => (
                 <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -181,7 +178,6 @@ export default function ActivityPage() {
             </SelectContent>
           </Select>
 
-          {/* Auto-refresh toggle */}
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
@@ -192,11 +188,10 @@ export default function ActivityPage() {
             {autoRefresh ? "Live" : "Paused"}
           </Button>
 
-          {/* Manual refresh */}
           <Button
             variant="outline"
             size="sm"
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 border-border"
             onClick={() => fetchLogs(0, false)}
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -204,13 +199,12 @@ export default function ActivityPage() {
         </div>
       </div>
 
-      {/* Log container */}
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-gray-50/50">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
           <Activity className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold text-foreground">Events</span>
           {autoRefresh && (
-            <span className="flex items-center gap-1 text-[11px] text-green-600 ml-auto">
+            <span className="flex items-center gap-1 text-[11px] text-green-500 ml-auto">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
               Live
             </span>

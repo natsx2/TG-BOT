@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -68,34 +68,26 @@
 }
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --border: 215 27% 17%;
+  --input: 215 27% 17%;
   --ring: 239 84% 67%;
-
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 220 13% 91%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 220 13% 91%;
-
+  --card: 222 47% 13%;
+  --card-foreground: 210 40% 98%;
+  --card-border: 215 27% 20%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --popover-border: 215 27% 17%;
   --primary: 239 84% 67%;
   --primary-foreground: 0 0% 100%;
-
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-
-  --accent: 210 40% 96%;
-  --accent-foreground: 222 47% 11%;
-
-  --destructive: 0 84% 60%;
+  --secondary: 215 27% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 215 27% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 215 27% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62% 50%;
   --destructive-foreground: 0 0% 100%;
 
   --sidebar: 222 47% 11%;
@@ -114,9 +106,42 @@
   --chart-5: 262 80% 50%;
 
   --radius: 0.5rem;
-  --app-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --app-font-sans: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.light {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 239 84% 67%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --card-border: 220 13% 91%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 220 13% 91%;
+  --primary: 239 84% 67%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-border: 215 27% 17%;
+  --sidebar-primary: 239 84% 67%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 215 28% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-ring: 239 84% 67%;
 }
 
 .dark {
@@ -139,7 +164,7 @@
   --muted-foreground: 215 20% 65%;
   --accent: 215 27% 17%;
   --accent-foreground: 210 40% 98%;
-  --destructive: 0 62% 30%;
+  --destructive: 0 62% 50%;
   --destructive-foreground: 0 0% 100%;
 }
 

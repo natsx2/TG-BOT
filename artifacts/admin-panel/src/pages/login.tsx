@@ -55,7 +55,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm space-y-8">
           <div className="flex flex-col items-center gap-4">
@@ -72,7 +72,7 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
             <div className="p-6">
               <Form {...form}>
                 <form
@@ -93,7 +93,7 @@ export default function Login() {
                             placeholder="admin"
                             autoComplete="username"
                             autoFocus
-                            className="h-10 bg-gray-50/50 border-border focus:bg-white transition-colors"
+                            className="h-10 bg-muted/30 border-border focus:bg-muted/50 transition-colors text-foreground"
                             {...field}
                           />
                         </FormControl>
@@ -115,7 +115,7 @@ export default function Login() {
                             type="password"
                             placeholder="••••••••"
                             autoComplete="current-password"
-                            className="h-10 bg-gray-50/50 border-border focus:bg-white transition-colors"
+                            className="h-10 bg-muted/30 border-border focus:bg-muted/50 transition-colors text-foreground"
                             {...field}
                           />
                         </FormControl>
@@ -143,7 +143,7 @@ export default function Login() {
               </Form>
             </div>
 
-            <div className="px-6 py-3 bg-gray-50 border-t border-border flex items-center gap-2">
+            <div className="px-6 py-3 bg-muted/30 border-t border-border flex items-center gap-2">
               <Lock className="h-3.5 w-3.5 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">
                 Secured with JWT authentication

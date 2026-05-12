@@ -73,10 +73,10 @@ export default function Settings() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center">
-            <Shield className="h-4 w-4 text-blue-600" />
+          <div className="w-7 h-7 rounded-md bg-blue-500/10 flex items-center justify-center">
+            <Shield className="h-4 w-4 text-blue-400" />
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Account credentials</p>
@@ -85,7 +85,7 @@ export default function Settings() {
         </div>
 
         <div className="p-5">
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-border mb-6">
+          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border mb-6">
             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
               <User className="h-4.5 w-4.5 text-primary" />
             </div>
@@ -123,7 +123,7 @@ export default function Settings() {
                           type="password"
                           placeholder="••••••••"
                           autoComplete="current-password"
-                          className="max-w-sm h-9 text-sm"
+                          className="max-w-sm h-9 text-sm bg-muted/30 border-border text-foreground"
                           data-testid="input-current-password"
                           {...field}
                         />
@@ -143,12 +143,12 @@ export default function Settings() {
                   name="newUsername"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm">New username</FormLabel>
+                      <FormLabel className="text-sm text-foreground">New username</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="Leave blank to keep current"
                           autoComplete="username"
-                          className="max-w-sm h-9 text-sm"
+                          className="max-w-sm h-9 text-sm bg-muted/30 border-border text-foreground"
                           data-testid="input-new-username"
                           {...field}
                         />
@@ -162,13 +162,13 @@ export default function Settings() {
                   name="newPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm">New password</FormLabel>
+                      <FormLabel className="text-sm text-foreground">New password</FormLabel>
                       <FormControl>
                         <Input
                           type="password"
                           placeholder="Leave blank to keep current"
                           autoComplete="new-password"
-                          className="max-w-sm h-9 text-sm"
+                          className="max-w-sm h-9 text-sm bg-muted/30 border-border text-foreground"
                           data-testid="input-new-password"
                           {...field}
                         />
@@ -179,9 +179,9 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 p-4">
-                <AlertTriangle className="h-4.5 w-4.5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">
+              <div className="flex items-start gap-3 rounded-lg bg-amber-500/10 border border-amber-500/30 p-4">
+                <AlertTriangle className="h-4.5 w-4.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-amber-300">
                   Saving new credentials will immediately sign you out of all active sessions.
                   You will need to sign in again with the updated credentials.
                 </p>

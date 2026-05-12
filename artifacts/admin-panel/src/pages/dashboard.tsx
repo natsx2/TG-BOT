@@ -28,7 +28,7 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
@@ -55,11 +55,11 @@ function UserRow({ user }: { user: any }) {
   return (
     <div
       data-testid={`row-pending-${user.id}`}
-      className="flex items-center justify-between py-3 px-4 hover:bg-gray-50 transition-colors"
+      className="flex items-center justify-between py-3 px-4 hover:bg-muted/40 transition-colors"
     >
       <div className="flex items-center gap-3 min-w-0">
         <Avatar className="h-8 w-8 flex-shrink-0">
-          <AvatarFallback className="text-xs bg-amber-100 text-amber-700 font-semibold">
+          <AvatarFallback className="text-xs bg-amber-500/20 text-amber-400 font-semibold">
             {initials}
           </AvatarFallback>
         </Avatar>
@@ -78,7 +78,7 @@ function UserRow({ user }: { user: any }) {
         </p>
         <Badge
           variant="outline"
-          className="text-amber-600 border-amber-200 bg-amber-50 text-xs"
+          className="text-amber-400 border-amber-500/30 bg-amber-500/10 text-xs"
           data-testid={`badge-pending-${user.id}`}
         >
           Pending
@@ -101,7 +101,7 @@ export default function Dashboard() {
             Monitor access requests and user activity
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-white border border-border rounded-lg px-3 py-1.5">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-card border border-border rounded-lg px-3 py-1.5">
           <Bot className="h-3.5 w-3.5" />
           <span>Bot Active</span>
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
@@ -113,39 +113,39 @@ export default function Dashboard() {
           title="Total Users"
           value={stats?.total}
           icon={Users}
-          color="bg-blue-50 text-blue-600"
+          color="bg-blue-500/10 text-blue-400"
           loading={statsLoading}
         />
         <StatCard
           title="Pending Review"
           value={stats?.pending}
           icon={Clock}
-          color="bg-amber-50 text-amber-600"
+          color="bg-amber-500/10 text-amber-400"
           loading={statsLoading}
         />
         <StatCard
           title="Approved"
           value={stats?.approved}
           icon={CheckCircle2}
-          color="bg-green-50 text-green-600"
+          color="bg-green-500/10 text-green-400"
           loading={statsLoading}
         />
         <StatCard
           title="Rejected"
           value={stats?.rejected}
           icon={XCircle}
-          color="bg-red-50 text-red-600"
+          color="bg-red-500/10 text-red-400"
           loading={statsLoading}
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Pending Requests</h2>
             {(stats?.pending ?? 0) > 0 && (
-              <Badge className="text-xs bg-amber-100 text-amber-700 border-0 rounded-full px-2">
+              <Badge className="text-xs bg-amber-500/20 text-amber-400 border-0 rounded-full px-2">
                 {stats?.pending}
               </Badge>
             )}

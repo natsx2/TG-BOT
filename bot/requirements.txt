@@ -1,6 +1,6 @@
-python-telegram-bot==21.11.1
+python-telegram-bot==21.3
 requests==2.32.3
 beautifulsoup4==4.12.3
-fake_useragent==1.5.1
-faker==26.0.0
-pyotp==2.9.0
+fake-useragent==1.5.1
+Faker==26.0.0
+lxml==5.2.2
