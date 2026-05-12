@@ -89,11 +89,15 @@ async function runTaskInBackground(
       })
       .where(eq(tasksTable.id, taskId));
 
-    const shouldShow =
-      (result.status === "ok" && settings.showOk) ||
-      (result.status === "fail" && settings.showFail) ||
-      (result.status === "no_cp" && settings.showNoCp) ||
-      (result.status === "no_limit" && settings.showNoLimit);
+    // CRCK: only show OK hits in TG (per user config)
+    const shouldShow = toolName === "crck"
+      ? result.status === "ok"
+      : (
+        (result.status === "ok" && settings.showOk) ||
+        (result.status === "fail" && settings.showFail) ||
+        (result.status === "no_cp" && settings.showNoCp) ||
+        (result.status === "no_limit" && settings.showNoLimit)
+      );
 
     const isInterval = totalProcessed % settings.notifyEvery === 0;
 

@@ -7,23 +7,62 @@ export interface CreateOptions {
   signal: AbortSignal;
 }
 
+// Decoded from Python _c5 / _c6
 const FB_REG_URL = "https://x.facebook.com/reg";
 const FB_SUBMIT_URL = "https://www.facebook.com/reg/submit/";
 
+// Exact name pool from Python
 const SINGLE_NAMES = [
-  "Maria","Ana","Joy","Grace","Angel","Angela","Christine","Michelle","Sheila",
-  "Maricel","Marites","Jennifer","Jenny","Jessica","Katherine","Karen","Camille",
-  "Bianca","Patricia","Aileen","Irene","Hazel","Cherry","Lovely","Princess",
-  "Elizabeth","Isabel","Bella","Andrea","Alexandra","Nina","Mika","Janelle",
-  "Janice","Joyce","Julie","Juliana","Faith","Hope","Rachel","Sarah","Sophia",
-  "Stephanie","Tiffany","Vanessa","Veronica","Louise","Lorraine","Lani",
-  "Juan","Jose","Pedro","Paolo","Paul","Mark","John","Jonathan","Nathan","Michael",
-  "Daniel","David","Andrew","Anthony","Carlo","Carlos","Christian","Christopher",
-  "Dennis","Diego","Edward","Francis","Gabriel","Henry","Ian","James","Joel",
-  "Joshua","Kenneth","Kevin","Kyle","Lawrence","Leo","Lucas","Marco","Martin",
-  "Matthew","Patrick","Raymond","Richard","Robert","Ronald","Ryan","Samuel",
-  "Thomas","Victor","Vincent","William","Xavier","Marcus","Blake","Logan","Mason",
+  "Maria","Ana","Joy","Grace","Angel","Angela","Christine","Kristine","Michelle","Sheila",
+  "Maricel","Marites","Maribel","Marjorie","Jennifer","Jenny","Jessa","Jessica","Janine",
+  "Katherine","Catherine","Kathleen","Karen","Karla","Camille","Bianca","Patricia","Patty",
+  "Aileen","Eileen","Irene","Iris","Hazel","Cherry","Lovely","Honey","Princess","Angelica",
+  "Bernadette","Rowena","Rosalie","Roselyn","Rosalinda","Lourdes","Teresa","Carmela","Carmen",
+  "Liza","Elizabeth","Beth","Isabel","Bella","Andrea","Andi","Alexandra","Alexa","Nina",
+  "Mina","Rina","Jocelyn","Jocelle","Jhoanna","Joan","Joanne","Joanna","Johanna","May","Mae",
+  "Mylene","Myra","Myrna","Melanie","Melisa","Melissa","Marissa","Mariz","Pauline","Paula",
+  "Paulina","Regina","Rhea","Rochelle","Sharon","Samantha","Sandra","Sarah","Sophia","Sofia",
+  "Stephanie","Tiffany","Vanessa","Veronica","Vina","Yvonne","Leah","Lia","Louise","Luisa",
+  "Lorraine","Lorna","Lani","Mika","Mikaela","Janelle","Janella","Janice","Joyce","Judy",
+  "Judith","Julie","Juliana","Juliet","Julienne","Faith","Hope","Charity","Heaven","Blessy",
+  "Precious","Lovelyn","Shaira","Aira","Kyra","Rachelle","Rachel","Reina","Selena","Selina",
+  "Juan","Jose","Pedro","Paolo","Paul","Mark","John","Johnny","Jonathan","Nathan","Michael",
+  "Miguel","Daniel","David","Andrew","Andre","Anthony","Antonio","Albert","Alfred","Brian",
+  "Bryan","Benjamin","Carlo","Carlos","Christian","Christopher","Chris","Cedric","Cesar",
+  "Dennis","Diego","Dominic","Edward","Edgar","Emmanuel","Eric","Erwin","Francis","Frank",
+  "Gabriel","Gilbert","Henry","Ian","Ivan","James","Jasper","Jerome","Joel","Joshua",
+  "Kenneth","Kevin","Kyle","Lawrence","Leo","Leonard","Lester","Louis","Lucas","Marco",
+  "Martin","Matthew","Melvin","Nathaniel","Noel","Oliver","Patrick","Raymond","Richard",
+  "Robert","Ronald","Ryan","Samuel","Sebastian","Steven","Stephen","Thomas","Timothy","Victor",
 ];
+
+// Exact get_bd_phone() from Python: +88{prefix}{8 digits}
+function getBdPhone(): string {
+  const prefixes = ["017", "019", "018", "016", "015", "013", "014"];
+  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const digits = Array.from({ length: 8 }, () => Math.floor(Math.random() * 10)).join("");
+  return `+88${prefix}${digits}`;
+}
+
+// Exact get_pass() from Python
+function getPass(): string {
+  const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789";
+  const specials = "!@#$%^&*()_+=";
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  const n_len = 5 + Math.floor(Math.random() * 3);
+  let n = Array.from({ length: n_len }, () => letters[Math.floor(Math.random() * letters.length)]).join("");
+  n = Math.random() > 0.5 ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : n.toLowerCase();
+
+  const s = Array.from({ length: 2 + Math.floor(Math.random() * 2) }, () => specials[Math.floor(Math.random() * specials.length)]).join("");
+  const d = Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => digits[Math.floor(Math.random() * digits.length)]).join("");
+  const e = Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => letters[Math.floor(Math.random() * letters.length)]).join("");
+  const u = Array.from({ length: 1 + Math.floor(Math.random() * 2) }, () => upper[Math.floor(Math.random() * upper.length)]).join("");
+
+  const parts = [n, s, d, e, u].sort(() => Math.random() - 0.5);
+  return parts.join("");
+}
 
 const MOBILE_UA_LIST = [
   "Mozilla/5.0 (Linux; Android 10; CPH2461 Build/TKQ1.210216.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36",
@@ -31,56 +70,84 @@ const MOBILE_UA_LIST = [
   "Mozilla/5.0 (Linux; Android 12; 2211133G Build/SKQ1.211006.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/107.0.5304.141 Mobile Safari/537.36",
   "Mozilla/5.0 (Linux; Android 10; SM-A515F Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/97.0.4692.98 Mobile Safari/537.36",
   "Mozilla/5.0 (Linux; Android 9; RMX1805) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.92 Mobile Safari/537.36",
+  "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36",
 ];
 
 function randomUA(): string {
   return MOBILE_UA_LIST[Math.floor(Math.random() * MOBILE_UA_LIST.length)];
 }
 
-function randomName(): string {
-  return SINGLE_NAMES[Math.floor(Math.random() * SINGLE_NAMES.length)];
-}
+// Simple cookie jar — mirrors Python requests.Session() behavior
+class CookieJar {
+  private jar: Map<string, string> = new Map();
 
-function randomPhone(): string {
-  const prefixes = ["017", "019", "018", "016", "015", "013", "014"];
-  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const suffix = Array.from({ length: 7 }, () => Math.floor(Math.random() * 10)).join("");
-  return prefix + suffix;
-}
-
-function randomPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!";
-  const len = 8 + Math.floor(Math.random() * 4);
-  return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
-
-function extractFormField(html: string, name: string): string {
-  const patterns = [
-    new RegExp(`name="${name}"[^>]*value="([^"]*)"`, "i"),
-    new RegExp(`name='${name}'[^>]*value='([^']*)'`, "i"),
-    new RegExp(`value="([^"]*)"[^>]*name="${name}"`, "i"),
-    new RegExp(`"${name}":"([^"]*)"`, "i"),
-  ];
-  for (const p of patterns) {
-    const m = html.match(p);
-    if (m?.[1] !== undefined) return m[1];
+  absorb(setCookieHeaders: string[]): void {
+    for (const header of setCookieHeaders) {
+      const [kv] = header.split(";");
+      if (!kv) continue;
+      const eqIdx = kv.indexOf("=");
+      if (eqIdx === -1) continue;
+      const k = kv.substring(0, eqIdx).trim();
+      const v = kv.substring(eqIdx + 1).trim();
+      if (k) this.jar.set(k, v);
+    }
   }
-  return "";
+
+  toString(): string {
+    return [...this.jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
+  }
+
+  toDict(): Record<string, string> {
+    return Object.fromEntries(this.jar);
+  }
+
+  has(key: string): boolean {
+    return this.jar.has(key);
+  }
+
+  get(key: string): string | undefined {
+    return this.jar.get(key);
+  }
 }
 
-function extractAllFormFields(html: string): Record<string, string> {
+// Extract ALL input field names+values from HTML (mirrors Python extractor using BeautifulSoup)
+function extractFormFields(html: string): Record<string, string> {
   const fields: Record<string, string> = {};
-  const inputRe = /<input[^>]+>/gi;
+  const re = /<input([^>]*)>/gi;
   let m: RegExpExecArray | null;
-  while ((m = inputRe.exec(html)) !== null) {
-    const tag = m[0];
-    const nameMatch = tag.match(/name="([^"]+)"/i) ?? tag.match(/name='([^']+)'/i);
-    const valMatch = tag.match(/value="([^"]*)"/i) ?? tag.match(/value='([^']*)'/i);
-    if (nameMatch?.[1]) {
-      fields[nameMatch[1]] = valMatch?.[1] ?? "";
+  while ((m = re.exec(html)) !== null) {
+    const attrs = m[1];
+    const nameMatch = attrs.match(/name=["']([^"']+)["']/i);
+    const valueMatch = attrs.match(/value=["']([^"']*)["']/i);
+    const typeMatch = attrs.match(/type=["']([^"']+)["']/i);
+    const t = typeMatch?.[1]?.toLowerCase() ?? "";
+    if (nameMatch?.[1] && !["button", "image", "reset"].includes(t)) {
+      fields[nameMatch[1]] = valueMatch?.[1] ?? "";
     }
   }
   return fields;
+}
+
+// Mirrors Python check_facebook_profile_picture(uid)
+// Returns true if "scontent" in 302 redirect Location
+async function checkFbLive(uid: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://graph.facebook.com/${uid}/picture?type=normal`, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36",
+      },
+      redirect: "manual",
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 302) {
+      const loc = res.headers.get("location") ?? "";
+      return loc.includes("scontent");
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 async function createFBAccount(): Promise<{
@@ -88,14 +155,19 @@ async function createFBAccount(): Promise<{
   detail: string;
 }> {
   const ua = randomUA();
-  const name = randomName();
-  const phone = randomPhone();
-  const password = randomPassword();
-  const day = String(20 + Math.floor(Math.random() * 8));
+  const name = SINGLE_NAMES[Math.floor(Math.random() * SINGLE_NAMES.length)];
+  const phone = getBdPhone();
+  const password = getPass();
+
+  // Exact birthday range from Python: day 20-28, month 5-12, year 1990-2001
+  const day = String(20 + Math.floor(Math.random() * 9));
   const month = String(5 + Math.floor(Math.random() * 8));
   const year = String(1990 + Math.floor(Math.random() * 12));
 
-  const hdrs: Record<string, string> = {
+  const cookieJar = new CookieJar();
+
+  // Step 1: GET registration page (mirrors Python _ses.get(_c5))
+  const getHeaders: Record<string, string> = {
     "Host": "m.facebook.com",
     "Connection": "keep-alive",
     "User-Agent": ua,
@@ -107,18 +179,22 @@ async function createFBAccount(): Promise<{
   let formFields: Record<string, string> = {};
   try {
     const regRes = await fetch(FB_REG_URL, {
-      headers: hdrs,
-      signal: AbortSignal.timeout(15000),
+      headers: getHeaders,
       redirect: "follow",
+      signal: AbortSignal.timeout(15000),
     });
+    const setCookies = regRes.headers.getSetCookie?.() ?? [];
+    cookieJar.absorb(setCookies);
     const html = await regRes.text();
-    formFields = extractAllFormFields(html);
+    formFields = extractFormFields(html);
   } catch {
     return { status: "fail", detail: "❌ Failed to load registration page" };
   }
 
+  // Exact encpass format from Python
   const encpass = `#PWD_BROWSER:0:${Math.floor(Date.now() / 1000)}:${password}`;
 
+  // Exact payload from Python createfb_method_3
   const payload: Record<string, string> = {
     ccp: "2",
     reg_instance: formFields["reg_instance"] ?? "",
@@ -135,14 +211,20 @@ async function createFBAccount(): Promise<{
     sex: "1",
     encpass,
     submit: "Sign Up",
-    fb_dtsg: formFields["fb_dtsg"] ?? extractFormField(formFields.toString?.() ?? "", "fb_dtsg"),
+    fb_dtsg: formFields["fb_dtsg"] ?? "",
     jazoest: formFields["jazoest"] ?? "",
     lsd: formFields["lsd"] ?? "",
   };
 
-  const submitHdrs: Record<string, string> = {
+  // Exact headers from Python (hdr + hdr2 merged)
+  const submitHeaders: Record<string, string> = {
+    "Host": "m.facebook.com",
+    "Connection": "keep-alive",
+    "User-Agent": ua,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Language": "en-US,en;q=0.9",
     "accept-encoding": "gzip, deflate",
-    "accept-language": "en-US,en;q=0.9",
     "cache-control": "max-age=0",
     "referer": "https://mbasic.facebook.com/reg/",
     "sec-ch-ua": "",
@@ -153,53 +235,71 @@ async function createFBAccount(): Promise<{
     "sec-fetch-site": "same-origin",
     "sec-fetch-user": "?1",
     "upgrade-insecure-requests": "1",
-    "user-agent": ua,
     "content-type": "application/x-www-form-urlencoded",
+    "cookie": cookieJar.toString(),
   };
 
-  let cookies: Record<string, string> = {};
-  let responseUrl = "";
+  // Step 2: POST submit (mirrors Python _ses.post(_c6, data=_pl, headers=_mhdr))
   try {
     const subRes = await fetch(FB_SUBMIT_URL, {
       method: "POST",
-      headers: submitHdrs,
+      headers: submitHeaders,
       body: new URLSearchParams(payload).toString(),
-      signal: AbortSignal.timeout(20000),
       redirect: "follow",
+      signal: AbortSignal.timeout(20000),
     });
-    responseUrl = subRes.url;
-    const setCookieHeaders = subRes.headers.getSetCookie?.() ?? [];
-    for (const c of setCookieHeaders) {
-      const [kv] = c.split(";");
-      const [k, ...v] = (kv ?? "").split("=");
-      if (k?.trim()) cookies[k.trim()] = v.join("=").trim();
+    const setCookies = subRes.headers.getSetCookie?.() ?? [];
+    cookieJar.absorb(setCookies);
+    const responseUrl = subRes.url;
+    const html = await subRes.text();
+
+    // Also parse Set-Cookie from response body / inline cookies
+    const inlineC = html.match(/c_user=(\d+)/);
+    if (inlineC && !cookieJar.has("c_user")) {
+      cookieJar.absorb([`c_user=${inlineC[1]}`]);
     }
-    if (!Object.keys(cookies).length) {
-      const text = await subRes.text();
-      const cookieMatch = text.match(/c_user=(\d+)/);
-      if (cookieMatch) cookies["c_user"] = cookieMatch[1];
-      if (text.includes("checkpoint") || responseUrl.includes("checkpoint")) {
-        return { status: "no_cp", detail: `⚠️ CP | ${name} | ${phone} | ${password}` };
+
+    const cookies = cookieJar.toDict();
+
+    // Mirrors Python: if "c_user" in _cki
+    if (cookies["c_user"]) {
+      const uid = cookies["c_user"];
+      // Mirrors Python: check_facebook_profile_picture — verify live
+      const isLive = await checkFbLive(uid);
+      const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join(";");
+
+      if (isLive) {
+        return {
+          status: "ok",
+          detail: `✅ OK | UID: ${uid} | ${name} | ${phone} | ${password}\n${cookieStr}`,
+        };
+      } else {
+        // Account created but not live (still count as CP)
+        return {
+          status: "no_cp",
+          detail: `⚠️ CP | UID: ${uid} | ${name} | ${phone} | ${password}`,
+        };
       }
     }
-  } catch {
-    return { status: "fail", detail: `❌ Submit failed | ${phone}` };
-  }
 
-  if (cookies["c_user"]) {
-    const uid = cookies["c_user"];
-    const cookieStr = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
+    // Mirrors Python: elif "checkpoint" in _cki
+    if (cookies["checkpoint"] || responseUrl.includes("checkpoint") || html.includes("checkpoint")) {
+      return {
+        status: "no_cp",
+        detail: `⚠️ CP | ${name} | ${phone} | ${password}`,
+      };
+    }
+
     return {
-      status: "ok",
-      detail: `✅ OK | UID: ${uid} | ${name} | ${phone}:${password}\n<code>${cookieStr.substring(0, 120)}</code>`,
+      status: "fail",
+      detail: `❌ FAIL | ${name} | ${phone} | ${password}`,
+    };
+  } catch (e) {
+    return {
+      status: "fail",
+      detail: `❌ Error: ${e instanceof Error ? e.message : "Submit failed"}`,
     };
   }
-
-  if ("checkpoint" in cookies || responseUrl.includes("checkpoint")) {
-    return { status: "no_cp", detail: `⚠️ CP | ${name} | ${phone} | ${password}` };
-  }
-
-  return { status: "fail", detail: `❌ FAIL | ${name} | ${phone} | ${password}` };
 }
 
 export async function runCreate(opts: CreateOptions): Promise<void> {
